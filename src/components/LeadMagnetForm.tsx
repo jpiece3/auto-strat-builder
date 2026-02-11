@@ -9,6 +9,8 @@ import { ChevronRight, ChevronLeft, Check } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from '@/hooks/use-toast';
 
+const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+
 interface FormData {
   timeEater: string;
   teamSize: string;
@@ -21,6 +23,9 @@ interface FormData {
   name: string;
   email: string;
   company: string;
+  website: string;
+  industry: string;
+  competitors: string;
 }
 
 interface Question {
@@ -116,7 +121,10 @@ const LeadMagnetForm: React.FC = () => {
     goal: '',
     name: '',
     email: '',
-    company: ''
+    company: '',
+    website: '',
+    industry: '',
+    competitors: ''
   });
 
   const navigate = useNavigate();
@@ -141,21 +149,26 @@ const LeadMagnetForm: React.FC = () => {
 
   const handleSubmit = async () => {
     setIsSubmitting(true);
-    
+
     try {
-      // Webhook submission (placeholder URL)
-      const response = await fetch('https://webhook.placeholder.url/automation-report', {
+      const response = await fetch(`${API_BASE}/api/analyze`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(formData)
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          brand_name: formData.company || formData.name,
+          website_url: formData.website,
+          industry: formData.industry || formData.businessType,
+          known_competitors: formData.competitors
+            ? formData.competitors.split(',').map(c => c.trim()).filter(Boolean)
+            : [],
+          depth: 'comprehensive',
+        }),
       });
-      
-      // Navigate to thank you page regardless of response for demo
-      navigate('/thank-you');
+
+      const data = await response.json();
+      navigate('/thank-you', { state: { jobId: data.job_id } });
     } catch (error) {
-      // For demo purposes, still navigate to thank you page
+      toast({ title: 'Analysis queued', description: 'Your report is being generated.' });
       navigate('/thank-you');
     } finally {
       setIsSubmitting(false);
@@ -164,7 +177,7 @@ const LeadMagnetForm: React.FC = () => {
 
   const isCurrentStepValid = () => {
     if (currentStep === 7) {
-      return formData.goal && formData.name && formData.email;
+      return formData.goal && formData.name && formData.email && formData.website;
     }
     
     const currentQuestion = questions[currentStep];
@@ -240,7 +253,7 @@ const LeadMagnetForm: React.FC = () => {
                   placeholder="your@email.com"
                 />
               </div>
-              <div className="md:col-span-2">
+              <div>
                 <Label htmlFor="company" className="text-sm font-medium">
                   Company (optional)
                 </Label>
@@ -251,6 +264,45 @@ const LeadMagnetForm: React.FC = () => {
                   onChange={(e) => handleInputChange('company', e.target.value)}
                   className="mt-1"
                   placeholder="Your company name"
+                />
+              </div>
+              <div>
+                <Label htmlFor="website" className="text-sm font-medium">
+                  Website URL <span className="text-destructive">*</span>
+                </Label>
+                <Input
+                  id="website"
+                  type="url"
+                  value={formData.website}
+                  onChange={(e) => handleInputChange('website', e.target.value)}
+                  className="mt-1"
+                  placeholder="https://yourcompany.com"
+                />
+              </div>
+              <div>
+                <Label htmlFor="industry" className="text-sm font-medium">
+                  Industry
+                </Label>
+                <Input
+                  id="industry"
+                  type="text"
+                  value={formData.industry}
+                  onChange={(e) => handleInputChange('industry', e.target.value)}
+                  className="mt-1"
+                  placeholder="e.g. SaaS, E-commerce, Consulting"
+                />
+              </div>
+              <div>
+                <Label htmlFor="competitors" className="text-sm font-medium">
+                  Known Competitors (comma-separated)
+                </Label>
+                <Input
+                  id="competitors"
+                  type="text"
+                  value={formData.competitors}
+                  onChange={(e) => handleInputChange('competitors', e.target.value)}
+                  className="mt-1"
+                  placeholder="competitor1.com, competitor2.com"
                 />
               </div>
             </div>
