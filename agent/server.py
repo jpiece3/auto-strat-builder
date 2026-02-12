@@ -152,11 +152,25 @@ async def list_jobs() -> list[dict[str, Any]]:
             "job_id": jid,
             "status": j["status"],
             "started_at": j["started_at"],
+            "completed_at": j.get("completed_at"),
             "brand_name": j.get("brand_name", ""),
             "website_url": j.get("website_url", ""),
+            "report_path": j.get("report_path"),
+            "html_report_path": j.get("html_report_path"),
         }
         for jid, j in _jobs.items()
     ]
+
+
+@app.delete("/api/jobs/{job_id}")
+async def delete_job(job_id: str) -> dict[str, str]:
+    """Delete a job from the dashboard."""
+    if job_id not in _jobs:
+        raise HTTPException(status_code=404, detail=f"Job {job_id} not found")
+
+    del _jobs[job_id]
+    logger.info("Job %s deleted", job_id)
+    return {"status": "deleted", "job_id": job_id}
 
 
 # ---------------------------------------------------------------------------

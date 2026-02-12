@@ -116,7 +116,7 @@ const Index = () => {
               <Shield className="w-3.5 h-3.5 mr-1.5" />
               Done-For-You Intelligence
             </Badge>
-            <h1 className="text-4xl md:text-5xl font-bold mb-4 leading-tight text-foreground">
+            <h1 className="text-4xl md:text-5xl font-bold mb-4 leading-tight text-foreground text-center">
               Know Your Market.{' '}
               <span className="gradient-cta bg-clip-text text-transparent">Own Your Position.</span>
             </h1>

@@ -3,8 +3,18 @@ import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { toast } from '@/hooks/use-toast';
 import {
-  Bot,
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import {
   Plus,
   ArrowRight,
   Check,
@@ -12,6 +22,10 @@ import {
   AlertTriangle,
   Clock,
   RefreshCw,
+  Trash2,
+  Copy,
+  Download,
+  ExternalLink,
 } from 'lucide-react';
 
 const API_BASE = import.meta.env.VITE_API_URL || '';
@@ -20,8 +34,11 @@ interface Job {
   job_id: string;
   status: string;
   started_at: string;
+  completed_at?: string;
   brand_name?: string;
   website_url?: string;
+  report_path?: string;
+  html_report_path?: string;
 }
 
 const STATUS_CONFIG: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline'; icon: React.ReactNode }> = {
@@ -35,6 +52,7 @@ const Dashboard: React.FC = () => {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState(true);
   const [serverUp, setServerUp] = useState(true);
+  const [deleteJobId, setDeleteJobId] = useState<string | null>(null);
 
   const fetchJobs = async () => {
     try {
@@ -50,6 +68,56 @@ const Dashboard: React.FC = () => {
     }
   };
 
+  const handleDelete = async (jobId: string) => {
+    try {
+      const res = await fetch(`${API_BASE}/api/jobs/${jobId}`, {
+        method: 'DELETE',
+      });
+      if (res.ok) {
+        toast({
+          title: 'Analysis deleted',
+          description: 'The analysis has been removed from the dashboard.',
+        });
+        setJobs((prev) => prev.filter((j) => j.job_id !== jobId));
+      } else {
+        throw new Error('Delete failed');
+      }
+    } catch {
+      toast({
+        title: 'Could not delete analysis',
+        description: 'An error occurred while deleting.',
+        variant: 'destructive',
+      });
+    }
+    setDeleteJobId(null);
+  };
+
+  const handleCopyUrl = (jobId: string) => {
+    const url = `${window.location.origin}/analysis/${jobId}`;
+    navigator.clipboard.writeText(url);
+    toast({
+      title: 'URL copied',
+      description: 'Analysis URL copied to clipboard.',
+    });
+  };
+
+  const handleDownload = async (jobId: string, htmlPath: string) => {
+    try {
+      // In production, we'd need a download endpoint
+      // For now, just copy the path
+      navigator.clipboard.writeText(htmlPath);
+      toast({
+        title: 'Report path copied',
+        description: 'HTML report path copied to clipboard.',
+      });
+    } catch {
+      toast({
+        title: 'Could not access report',
+        variant: 'destructive',
+      });
+    }
+  };
+
   useEffect(() => {
     fetchJobs();
     const interval = setInterval(fetchJobs, 5000);
@@ -61,15 +129,13 @@ const Dashboard: React.FC = () => {
       {/* Nav */}
       <nav className="border-b bg-background/80 backdrop-blur-sm sticky top-0 z-50">
         <div className="container mx-auto px-4 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-2 cursor-pointer" onClick={() => navigate('/')}>
-            <div className="w-8 h-8 gradient-hero rounded-lg flex items-center justify-center">
-              <Bot className="w-5 h-5 text-white" />
-            </div>
-            <span className="font-bold text-lg" style={{ color: 'hsl(200 50% 25%)' }}>
-              Brand Intel Agent
+          <div className="flex items-center gap-3 cursor-pointer" onClick={() => navigate('/')}>
+            <img src="/logo.png" alt="Brothers Automate" className="h-10" />
+            <span className="font-bold text-lg text-foreground">
+              Intelligence
             </span>
           </div>
-          <Button size="sm" onClick={() => navigate('/')} className="gradient-hero hover:opacity-90">
+          <Button size="sm" onClick={() => navigate('/')} className="gradient-cta hover:opacity-90">
             <Plus className="w-4 h-4 mr-1" /> New Analysis
           </Button>
         </div>
@@ -78,8 +144,8 @@ const Dashboard: React.FC = () => {
       <div className="container mx-auto px-4 py-10 max-w-3xl">
         <div className="flex items-center justify-between mb-8">
           <div>
-            <h1 className="text-2xl font-bold" style={{ color: 'hsl(200 50% 25%)' }}>
-              Analysis Dashboard
+            <h1 className="text-2xl font-bold text-foreground">
+              Past Analyses
             </h1>
             <p className="text-sm text-muted-foreground">All brand intelligence runs</p>
           </div>
@@ -108,13 +174,13 @@ const Dashboard: React.FC = () => {
         {!loading && jobs.length === 0 && serverUp && (
           <Card className="p-12 text-center gradient-card shadow-soft">
             <Clock className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-            <h2 className="text-lg font-semibold mb-2" style={{ color: 'hsl(200 50% 25%)' }}>
+            <h2 className="text-lg font-semibold mb-2 text-foreground">
               No analyses yet
             </h2>
             <p className="text-muted-foreground mb-6">
               Run your first brand intelligence analysis to see results here.
             </p>
-            <Button onClick={() => navigate('/')} className="gradient-hero hover:opacity-90">
+            <Button onClick={() => navigate('/')} className="gradient-cta hover:opacity-90">
               <Plus className="w-4 h-4 mr-1" /> Start Analysis
             </Button>
           </Card>
@@ -129,11 +195,13 @@ const Dashboard: React.FC = () => {
                 return (
                   <Card
                     key={job.job_id}
-                    className="p-4 hover-lift cursor-pointer transition-spring"
-                    onClick={() => navigate(`/analysis/${job.job_id}`)}
+                    className="p-4 transition-spring"
                   >
-                    <div className="flex items-center gap-4">
-                      <div className="flex-1 min-w-0">
+                    <div className="flex items-start gap-4">
+                      <div
+                        className="flex-1 min-w-0 cursor-pointer"
+                        onClick={() => navigate(`/analysis/${job.job_id}`)}
+                      >
                         <div className="flex items-center gap-2 mb-1">
                           <span className="font-semibold text-sm">
                             {job.brand_name || job.job_id}
@@ -147,13 +215,70 @@ const Dashboard: React.FC = () => {
                           Started {new Date(job.started_at).toLocaleString()}
                         </p>
                       </div>
-                      <ArrowRight className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+                      <div className="flex items-center gap-2 flex-shrink-0">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => navigate(`/analysis/${job.job_id}`)}
+                          title="View analysis"
+                        >
+                          <ExternalLink className="w-4 h-4" />
+                        </Button>
+                        {job.status === 'completed' && job.html_report_path && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleDownload(job.job_id, job.html_report_path!)}
+                            title="Download HTML report"
+                          >
+                            <Download className="w-4 h-4" />
+                          </Button>
+                        )}
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleCopyUrl(job.job_id)}
+                          title="Copy URL"
+                        >
+                          <Copy className="w-4 h-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setDeleteJobId(job.job_id)}
+                          className="text-destructive hover:text-destructive"
+                          title="Delete analysis"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
                     </div>
                   </Card>
                 );
               })}
           </div>
         )}
+
+        {/* Delete confirmation dialog */}
+        <AlertDialog open={!!deleteJobId} onOpenChange={() => setDeleteJobId(null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete Analysis?</AlertDialogTitle>
+              <AlertDialogDescription>
+                This will remove the analysis from your dashboard. The report files will remain on disk.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={() => deleteJobId && handleDelete(deleteJobId)}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                Delete
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </div>
   );
