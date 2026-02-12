@@ -1,73 +1,156 @@
-# Welcome to your Lovable project
+# Brothers Automate Intelligence Agent
 
-## Project info
+Autonomous brand and competitor intelligence platform using AI agents to crawl, research, and analyze brands and their competitive landscape.
 
-**URL**: https://lovable.dev/projects/c7e9a64b-956d-4e13-a0e5-434c5a38c387
+## Overview
 
-## How can I edit this code?
+This application combines a FastAPI backend with a React frontend to deliver comprehensive brand intelligence reports. AI agents work autonomously to:
 
-There are several ways of editing your application.
+- **Brand Discovery** - Crawl and analyze brand identity, messaging, and positioning
+- **Competitor Intelligence** - Identify and profile competitors with SEO metrics
+- **SEO Analysis** - Analyze keywords, backlinks, rankings, and traffic
+- **Web Presence** - Scan social profiles and online reputation
+- **Report Compilation** - Generate professional HTML and Markdown reports
 
-**Use Lovable**
+## Tech Stack
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/c7e9a64b-956d-4e13-a0e5-434c5a38c387) and start prompting.
+**Backend:**
+- Python 3.11+
+- FastAPI
+- Pydantic
+- Firecrawl (web scraping)
+- Tavily (search & research)
+- Playwright (automation)
+- DataForSEO (SEO metrics)
 
-Changes made via Lovable will be committed automatically to this repo.
+**Frontend:**
+- React 18
+- TypeScript
+- Vite
+- Tailwind CSS
+- shadcn/ui
+- React Router
 
-**Use your preferred IDE**
+## Getting Started
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+### Prerequisites
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+- Node.js 18+ and npm
+- Python 3.11+
+- API keys for: Firecrawl, Tavily, Playwright, DataForSEO
 
-Follow these steps:
+### Installation
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+1. **Clone the repository**
+   ```bash
+   git clone https://github.com/jpiece3/brand-intel.git
+   cd brand-intel
+   ```
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+2. **Install frontend dependencies**
+   ```bash
+   npm install
+   ```
 
-# Step 3: Install the necessary dependencies.
-npm i
+3. **Install backend dependencies**
+   ```bash
+   pip install -r requirements.txt
+   ```
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
+4. **Configure environment variables**
+   ```bash
+   cp .env.example .env
+   # Add your API keys to .env
+   ```
+
+### Running Locally
+
+1. **Start the backend server**
+   ```bash
+   cd agent
+   uvicorn server:app --reload --port 8000
+   ```
+
+2. **Start the frontend dev server**
+   ```bash
+   npm run dev
+   ```
+
+3. **Open your browser**
+   ```
+   http://localhost:5173
+   ```
+
+## Building for Production
+
+1. **Build the frontend**
+   ```bash
+   npm run build
+   ```
+
+2. **Run the combined server**
+   The FastAPI server serves both the API and the built frontend:
+   ```bash
+   cd agent
+   uvicorn server:app --host 0.0.0.0 --port 8000
+   ```
+
+## Deployment
+
+### Railway
+
+This app is configured for one-click Railway deployment:
+
+```bash
+railway up
 ```
 
-**Edit a file directly in GitHub**
+The `Dockerfile` and `railway.toml` handle the build and deployment automatically.
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+### Environment Variables
 
-**Use GitHub Codespaces**
+Required environment variables:
+- `FIRECRAWL_API_KEY` - Web scraping
+- `TAVILY_API_KEY` - Search and research
+- `PLAYWRIGHT_API_KEY` - Browser automation
+- `DATAFORSEO_API_KEY` - SEO metrics
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+## Project Structure
 
-## What technologies are used for this project?
+```
+.
+├── agent/                    # Python backend
+│   ├── agents/              # AI agent implementations
+│   ├── workflows/           # Multi-agent workflows
+│   ├── server.py            # FastAPI server
+│   └── models.py            # Data models
+├── src/                     # React frontend
+│   ├── components/          # UI components
+│   ├── pages/              # Page components
+│   └── lib/                # Utilities
+└── public/                 # Static assets
+```
 
-This project is built with:
+## API Endpoints
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+- `POST /api/analyze` - Start a new brand analysis
+- `GET /api/status/{job_id}` - Check analysis status
+- `GET /api/jobs` - List all analyses
+- `GET /api/reports/{job_id}/html` - View HTML report
+- `GET /api/reports/{job_id}/markdown` - View Markdown report
+- `DELETE /api/jobs/{job_id}` - Delete an analysis
 
-## How can I deploy this project?
+## Features
 
-Simply open [Lovable](https://lovable.dev/projects/c7e9a64b-956d-4e13-a0e5-434c5a38c387) and click on Share -> Publish.
+- **Real-time Progress** - Watch AI agents work through each stage
+- **Professional Reports** - Brothers Automate branded HTML reports
+- **Dashboard** - Manage and view past analyses
+- **Export Options** - HTML, Markdown, and JSON formats
 
-## Can I connect a custom domain to my Lovable project?
+## License
 
-Yes, you can!
+Proprietary - Brothers Automate
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+## Support
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+For questions or support, contact: support@brothersautomate.com
