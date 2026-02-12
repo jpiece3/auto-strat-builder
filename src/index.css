@@ -1,63 +1,77 @@
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* Professional Lead Magnet Design System */
+/* Brothers Automate Brand Design System */
 
 @layer base {
   :root {
-    /* Simple Flo Solutions Color Palette */
-    --background: 0 0% 100%;
-    --foreground: 200 15% 20%;
+    /* Brothers Automate Color Palette */
+    /* Background: Clean Slate #fdfcfa */
+    --background: 33 17% 99%;
+    /* Foreground: Navy #1a365d */
+    --foreground: 210 55% 24%;
 
     --card: 0 0% 100%;
-    --card-foreground: 200 15% 20%;
+    --card-foreground: 210 55% 24%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 200 15% 20%;
+    --popover-foreground: 210 55% 24%;
 
-    /* Teal/Cyan Primary (matching Simple Flo) */
-    --primary: 174 72% 56%;
-    --primary-foreground: 0 0% 100%;
-    --primary-hover: 174 72% 50%;
-    
-    /* Light Teal Secondary */
-    --secondary: 174 40% 96%;
-    --secondary-foreground: 174 72% 35%;
+    /* Primary: Navy #1a365d */
+    --primary: 210 55% 24%;
+    --primary-foreground: 33 17% 99%;
+    --primary-hover: 210 55% 32%;
 
-    --muted: 200 20% 96%;
-    --muted-foreground: 200 15% 50%;
+    /* CTA: Orange #ed8936 */
+    --cta: 22 81% 58%;
+    --cta-foreground: 0 0% 100%;
+    --cta-hover: 22 81% 50%;
 
-    --accent: 174 100% 96%;
-    --accent-foreground: 174 72% 35%;
+    /* Secondary: Light Beige #f8f7f4 */
+    --secondary: 33 17% 97%;
+    --secondary-foreground: 210 55% 24%;
 
-    /* Success Teal */
-    --success: 174 72% 45%;
+    /* Muted: Slate #64748b */
+    --muted: 215 16% 47%;
+    --muted-foreground: 215 16% 47%;
+
+    /* Accent: Blue #3182ce */
+    --accent: 207 71% 50%;
+    --accent-foreground: 0 0% 100%;
+
+    /* Success: Green #16a34a */
+    --success: 142 71% 37%;
     --success-foreground: 0 0% 100%;
 
-    /* Dark Teal for headings */
-    --heading: 200 50% 25%;
+    /* Heading: Navy #1a365d */
+    --heading: 210 55% 24%;
     --heading-foreground: 0 0% 100%;
 
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 200 20% 90%;
-    --input: 200 20% 95%;
-    --ring: 174 72% 56%;
+    /* Border: Subtle Border #e8e6e1 */
+    --border: 40 11% 89%;
+    --input: 40 11% 93%;
+    /* Ring: Orange */
+    --ring: 22 81% 58%;
 
-    --radius: 0.75rem;
+    --radius: 0.5rem;
 
-    /* Simple Flo Gradients */
-    --gradient-primary: linear-gradient(135deg, hsl(174 72% 56%), hsl(180 70% 60%));
-    --gradient-hero: linear-gradient(135deg, hsl(174 72% 56%) 0%, hsl(180 70% 60%) 50%, hsl(185 65% 65%) 100%);
-    --gradient-card: linear-gradient(145deg, hsl(0 0% 100%) 0%, hsl(174 20% 98%) 100%);
-    --gradient-bg: linear-gradient(180deg, hsl(0 0% 100%) 0%, hsl(174 15% 98%) 100%);
-    
+    /* Brothers Automate Gradients */
+    --gradient-primary: linear-gradient(135deg, hsl(210 55% 24%), hsl(210 55% 32%));
+    --gradient-hero: linear-gradient(135deg, hsl(210 55% 24%) 0%, hsl(210 50% 36%) 50%, hsl(210 50% 45%) 100%);
+    --gradient-card: linear-gradient(145deg, hsl(0 0% 100%) 0%, hsl(33 17% 97%) 100%);
+    --gradient-cta: linear-gradient(135deg, hsl(22 81% 58%) 0%, hsl(22 81% 50%) 100%);
+    --gradient-bg: linear-gradient(180deg, hsl(33 17% 99%) 0%, hsl(33 17% 97%) 100%);
+
     /* Professional Shadows */
-    --shadow-soft: 0 2px 20px -2px hsl(174 72% 56% / 0.1);
-    --shadow-medium: 0 8px 25px -5px hsl(174 72% 56% / 0.15);
-    --shadow-strong: 0 20px 40px -12px hsl(174 72% 56% / 0.25);
+    --shadow-soft: 0 2px 20px -2px hsl(210 55% 24% / 0.1);
+    --shadow-medium: 0 8px 25px -5px hsl(210 55% 24% / 0.15);
+    --shadow-strong: 0 20px 40px -12px hsl(210 55% 24% / 0.25);
     
     /* Smooth Transitions */
     --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
@@ -126,7 +140,8 @@
   }
 
   body {
-    @apply bg-background text-foreground font-sans antialiased;
+    @apply bg-background text-foreground antialiased;
+    font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   }
 }
 

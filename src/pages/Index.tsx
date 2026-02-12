@@ -18,7 +18,6 @@ import {
   Target,
   TrendingUp,
   Shield,
-  Bot,
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 
@@ -97,12 +96,10 @@ const Index = () => {
       {/* Nav */}
       <nav className="border-b bg-background/80 backdrop-blur-sm sticky top-0 z-50">
         <div className="container mx-auto px-4 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 gradient-hero rounded-lg flex items-center justify-center">
-              <Bot className="w-5 h-5 text-white" />
-            </div>
-            <span className="font-bold text-lg" style={{ color: 'hsl(200 50% 25%)' }}>
-              Brand Intel Agent
+          <div className="flex items-center gap-3">
+            <img src="/logo.png" alt="Brothers Automate" className="h-10" />
+            <span className="font-bold text-lg text-foreground">
+              Intelligence
             </span>
           </div>
           <Button variant="ghost" size="sm" onClick={() => navigate('/dashboard')}>
@@ -117,18 +114,15 @@ const Index = () => {
           <div className="text-center mb-12 animate-fade-in">
             <Badge variant="secondary" className="mb-4 px-4 py-1.5 text-sm shadow-soft">
               <Shield className="w-3.5 h-3.5 mr-1.5" />
-              Autonomous AI Agent Pipeline
+              Done-For-You Intelligence
             </Badge>
-            <h1
-              className="text-4xl md:text-5xl font-bold mb-4 leading-tight"
-              style={{ color: 'hsl(200 50% 25%)' }}
-            >
-              Brand & Competitor{' '}
-              <span className="gradient-hero bg-clip-text text-transparent">Intelligence</span>
+            <h1 className="text-4xl md:text-5xl font-bold mb-4 leading-tight text-foreground">
+              Know Your Market.{' '}
+              <span className="gradient-cta bg-clip-text text-transparent">Own Your Position.</span>
             </h1>
-            <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-              Enter a brand and our AI agents autonomously crawl, research, and analyze
-              everything - delivering a comprehensive intelligence report in minutes.
+            <p className="text-lg text-muted max-w-2xl mx-auto">
+              Our AI agents crawl, research, and analyze your brand and competitors—delivering
+              a complete intelligence report while you sleep. No manual work. No guesswork.
             </p>
           </div>
 
@@ -153,8 +147,8 @@ const Index = () => {
           {/* Form */}
           <Card className="max-w-2xl mx-auto p-8 shadow-medium gradient-card animate-scale-in">
             <form onSubmit={handleSubmit} className="space-y-6">
-              <h2 className="text-xl font-semibold" style={{ color: 'hsl(200 50% 25%)' }}>
-                Start a New Analysis
+              <h2 className="text-xl font-semibold text-foreground">
+                Start Intelligence Analysis
               </h2>
 
               {/* Required fields */}
@@ -260,7 +254,7 @@ const Index = () => {
               <Button
                 type="submit"
                 disabled={!canSubmit || isSubmitting}
-                className="w-full gradient-hero hover:opacity-90 text-base py-3"
+                className="w-full gradient-cta hover:opacity-90 text-base py-3"
               >
                 {isSubmitting ? (
                   <>
@@ -283,11 +277,8 @@ const Index = () => {
       {/* Features */}
       <section className="py-16 px-4 bg-primary/5">
         <div className="container mx-auto max-w-5xl">
-          <h2
-            className="text-3xl font-bold text-center mb-12"
-            style={{ color: 'hsl(200 50% 25%)' }}
-          >
-            What the Agents Uncover
+          <h2 className="text-3xl font-bold text-center mb-12 text-foreground">
+            What We Discover For You
           </h2>
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
             {[
@@ -302,7 +293,7 @@ const Index = () => {
                   <div className="w-12 h-12 bg-primary rounded-xl flex items-center justify-center mb-4">
                     <Icon className="w-6 h-6 text-primary-foreground" />
                   </div>
-                  <h3 className="font-semibold mb-2" style={{ color: 'hsl(200 50% 25%)' }}>
+                  <h3 className="font-semibold mb-2 text-foreground">
                     {feat.title}
                   </h3>
                   <p className="text-sm text-muted-foreground">{feat.desc}</p>

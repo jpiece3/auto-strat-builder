@@ -367,7 +367,7 @@ const LeadMagnetForm: React.FC = () => {
       {/* Progress Bar */}
       <div className="w-full bg-secondary/30 h-2">
         <div 
-          className="h-full gradient-hero transition-all duration-700 ease-out"
+          className="h-full gradient-cta transition-all duration-700 ease-out"
           style={{ width: `${progressPercentage}%` }}
         />
       </div>
@@ -405,7 +405,7 @@ const LeadMagnetForm: React.FC = () => {
               <Button
                 onClick={handleSubmit}
                 disabled={!isCurrentStepValid() || isSubmitting}
-                className="flex items-center gap-2 gradient-hero hover:opacity-90"
+                className="flex items-center gap-2 gradient-cta hover:opacity-90"
               >
                 {isSubmitting ? (
                   <>

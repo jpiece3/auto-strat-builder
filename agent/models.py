@@ -180,6 +180,7 @@ class WorkflowState:
     started_at: str = field(default_factory=lambda: datetime.utcnow().isoformat())
     completed_at: str = ""
     report_path: str = ""
+    html_report_path: str = ""
     errors: list[str] = field(default_factory=list)
 
     @property

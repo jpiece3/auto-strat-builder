@@ -73,6 +73,7 @@ class JobStatusResponse(BaseModel):
     started_at: str
     completed_at: str | None = None
     report_path: str | None = None
+    html_report_path: str | None = None
     errors: list[str] = []
     tasks_completed: int = 0
     tasks_total: int = 5
@@ -106,6 +107,7 @@ async def start_analysis(request: BrandQueryRequest) -> JobResponse:
         "started_at": datetime.utcnow().isoformat(),
         "completed_at": None,
         "report_path": None,
+        "html_report_path": None,
         "errors": [],
         "tasks_completed": 0,
         "query": query,
@@ -136,6 +138,7 @@ async def get_status(job_id: str) -> JobStatusResponse:
         started_at=job["started_at"],
         completed_at=job.get("completed_at"),
         report_path=job.get("report_path"),
+        html_report_path=job.get("html_report_path"),
         errors=job.get("errors", []),
         tasks_completed=job.get("tasks_completed", 0),
     )
@@ -172,6 +175,7 @@ async def _run_job(job_id: str, query: BrandQuery) -> None:
         _jobs[job_id]["status"] = state.status.value
         _jobs[job_id]["completed_at"] = state.completed_at
         _jobs[job_id]["report_path"] = state.report_path
+        _jobs[job_id]["html_report_path"] = getattr(state, 'html_report_path', None)
         _jobs[job_id]["errors"] = state.errors
         _jobs[job_id]["tasks_completed"] = sum(
             1 for t in state.task_results if t.status == TaskStatus.COMPLETED
