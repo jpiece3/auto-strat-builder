@@ -12,9 +12,10 @@ import {
   Users,
   FileText,
   ArrowLeft,
-  Bot,
   AlertTriangle,
   Clock,
+  Download,
+  ExternalLink,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -26,6 +27,7 @@ interface JobStatus {
   started_at: string;
   completed_at: string | null;
   report_path: string | null;
+  html_report_path: string | null;
   errors: string[];
   tasks_completed: number;
   tasks_total: number;
@@ -126,12 +128,10 @@ const Analysis: React.FC = () => {
       {/* Nav */}
       <nav className="border-b bg-background/80 backdrop-blur-sm sticky top-0 z-50">
         <div className="container mx-auto px-4 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 gradient-hero rounded-lg flex items-center justify-center">
-              <Bot className="w-5 h-5 text-white" />
-            </div>
-            <span className="font-bold text-lg" style={{ color: 'hsl(200 50% 25%)' }}>
-              Brand Intel Agent
+          <div className="flex items-center gap-3 cursor-pointer" onClick={() => navigate('/')}>
+            <img src="/logo.png" alt="Brothers Automate" className="h-10" />
+            <span className="font-bold text-lg text-foreground">
+              Intelligence
             </span>
           </div>
           <Button variant="ghost" size="sm" onClick={() => navigate('/')}>
@@ -159,7 +159,7 @@ const Analysis: React.FC = () => {
             )}
           </div>
 
-          <h1 className="text-3xl font-bold mb-2" style={{ color: 'hsl(200 50% 25%)' }}>
+          <h1 className="text-3xl font-bold mb-2 text-foreground">
             {isRunning
               ? 'Agents Working...'
               : isComplete
@@ -269,19 +269,78 @@ const Analysis: React.FC = () => {
 
         {/* Completion card */}
         {isComplete && (
-          <Card className="p-6 border-success/30 bg-success/5 text-center animate-scale-in">
-            <Check className="w-10 h-10 text-success mx-auto mb-3" />
-            <h2 className="text-lg font-bold mb-1" style={{ color: 'hsl(200 50% 25%)' }}>
-              Intelligence Report Generated
-            </h2>
-            {status?.report_path && (
-              <p className="text-sm text-muted-foreground mb-4 font-mono">{status.report_path}</p>
-            )}
+          <Card className="p-6 border-success/30 bg-success/5 animate-scale-in">
+            <div className="text-center mb-6">
+              <Check className="w-10 h-10 text-success mx-auto mb-3" />
+              <h2 className="text-lg font-bold mb-1 text-foreground">
+                Intelligence Report Generated
+              </h2>
+              <p className="text-sm text-muted-foreground">
+                Your comprehensive brand analysis is ready
+              </p>
+            </div>
+
+            {/* Download options */}
+            <div className="space-y-3 mb-6">
+              {status?.html_report_path && (
+                <div className="flex items-center justify-between p-4 bg-background rounded-lg border border-border">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                      <FileText className="w-5 h-5 text-primary" />
+                    </div>
+                    <div>
+                      <div className="font-semibold text-sm">HTML Report</div>
+                      <div className="text-xs text-muted-foreground">Professional branded report</div>
+                    </div>
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => {
+                      if (status.html_report_path) {
+                        navigator.clipboard.writeText(status.html_report_path);
+                      }
+                    }}
+                  >
+                    <Download className="w-4 h-4 mr-1" />
+                    Copy Path
+                  </Button>
+                </div>
+              )}
+
+              {status?.report_path && (
+                <div className="flex items-center justify-between p-4 bg-background rounded-lg border border-border">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-lg bg-accent/10 flex items-center justify-center">
+                      <FileText className="w-5 h-5 text-accent" />
+                    </div>
+                    <div>
+                      <div className="font-semibold text-sm">Markdown Report</div>
+                      <div className="text-xs text-muted-foreground">Plain text format</div>
+                    </div>
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => {
+                      if (status.report_path) {
+                        navigator.clipboard.writeText(status.report_path);
+                      }
+                    }}
+                  >
+                    <Download className="w-4 h-4 mr-1" />
+                    Copy Path
+                  </Button>
+                </div>
+              )}
+            </div>
+
             <div className="flex gap-3 justify-center">
               <Button onClick={() => navigate('/')} variant="outline" size="sm">
                 New Analysis
               </Button>
-              <Button onClick={() => navigate('/dashboard')} size="sm" className="gradient-hero hover:opacity-90">
+              <Button onClick={() => navigate('/dashboard')} size="sm" className="gradient-cta hover:opacity-90">
+                <ExternalLink className="w-4 h-4 mr-1" />
                 View All Reports
               </Button>
             </div>
