@@ -14,12 +14,14 @@ import {
   RefreshCw,
 } from 'lucide-react';
 
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+const API_BASE = import.meta.env.VITE_API_URL || '';
 
 interface Job {
   job_id: string;
   status: string;
   started_at: string;
+  brand_name?: string;
+  website_url?: string;
 }
 
 const STATUS_CONFIG: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline'; icon: React.ReactNode }> = {
@@ -133,12 +135,15 @@ const Dashboard: React.FC = () => {
                     <div className="flex items-center gap-4">
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-1">
-                          <span className="font-mono text-sm font-semibold">{job.job_id}</span>
+                          <span className="font-semibold text-sm">
+                            {job.brand_name || job.job_id}
+                          </span>
                           <Badge variant={cfg.variant} className="text-xs flex items-center gap-1">
                             {cfg.icon} {cfg.label}
                           </Badge>
                         </div>
                         <p className="text-xs text-muted-foreground">
+                          {job.website_url && <span className="mr-3">{job.website_url}</span>}
                           Started {new Date(job.started_at).toLocaleString()}
                         </p>
                       </div>

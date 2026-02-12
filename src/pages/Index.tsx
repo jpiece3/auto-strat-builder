@@ -22,7 +22,7 @@ import {
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+const API_BASE = import.meta.env.VITE_API_URL || '';
 
 const PIPELINE_STEPS = [
   { icon: Search, label: 'Brand Discovery', desc: 'Crawl & profile your brand identity via Firecrawl' },

@@ -1,15 +1,22 @@
-"""FastAPI server exposing the brand intelligence workflow as an API."""
+"""FastAPI server exposing the brand intelligence workflow as an API.
+
+Also serves the React frontend as static files in production so the
+entire app runs as a single Railway service.
+"""
 
 from __future__ import annotations
 
 import asyncio
+import os
 import uuid
 from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse, HTMLResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 from agent.config import AgentConfig
@@ -19,13 +26,16 @@ from agent.workflows.brand_intelligence import BrandIntelligenceWorkflow
 
 logger = get_logger("server")
 
+# ---------------------------------------------------------------------------
+# App setup
+# ---------------------------------------------------------------------------
+
 app = FastAPI(
     title="Brand Intelligence Agent API",
     description="Autonomous brand and competitor intelligence using Firecrawl, Tavily, Playwright, and DataForSEO",
     version="0.1.0",
 )
 
-# Allow the React frontend to call this API
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -37,8 +47,9 @@ app.add_middleware(
 # In-memory job store (swap for Redis/DB in production)
 _jobs: dict[str, dict[str, Any]] = {}
 
-
-# ── Request/Response Models ─────────────────────────────────────────────────
+# ---------------------------------------------------------------------------
+# Pydantic models
+# ---------------------------------------------------------------------------
 
 class BrandQueryRequest(BaseModel):
     brand_name: str = Field(..., description="The brand name to analyze")
@@ -66,8 +77,9 @@ class JobStatusResponse(BaseModel):
     tasks_completed: int = 0
     tasks_total: int = 5
 
-
-# ── Endpoints ───────────────────────────────────────────────────────────────
+# ---------------------------------------------------------------------------
+# API endpoints
+# ---------------------------------------------------------------------------
 
 @app.get("/health")
 async def health() -> dict[str, str]:
@@ -97,9 +109,10 @@ async def start_analysis(request: BrandQueryRequest) -> JobResponse:
         "errors": [],
         "tasks_completed": 0,
         "query": query,
+        "brand_name": request.brand_name,
+        "website_url": request.website_url,
     }
 
-    # Launch workflow in background
     asyncio.create_task(_run_job(job_id, query))
 
     logger.info("Job %s started for %s", job_id, request.brand_name)
@@ -130,14 +143,22 @@ async def get_status(job_id: str) -> JobStatusResponse:
 
 @app.get("/api/jobs")
 async def list_jobs() -> list[dict[str, Any]]:
-    """List all jobs."""
+    """List all jobs with summary info."""
     return [
-        {"job_id": jid, "status": j["status"], "started_at": j["started_at"]}
+        {
+            "job_id": jid,
+            "status": j["status"],
+            "started_at": j["started_at"],
+            "brand_name": j.get("brand_name", ""),
+            "website_url": j.get("website_url", ""),
+        }
         for jid, j in _jobs.items()
     ]
 
 
-# ── Background Job Runner ──────────────────────────────────────────────────
+# ---------------------------------------------------------------------------
+# Background job runner
+# ---------------------------------------------------------------------------
 
 async def _run_job(job_id: str, query: BrandQuery) -> None:
     """Execute the workflow and update job state."""
@@ -161,3 +182,42 @@ async def _run_job(job_id: str, query: BrandQuery) -> None:
         _jobs[job_id]["status"] = "failed"
         _jobs[job_id]["completed_at"] = datetime.utcnow().isoformat()
         _jobs[job_id]["errors"] = [str(exc)]
+
+
+# ---------------------------------------------------------------------------
+# Static file serving — React SPA
+# ---------------------------------------------------------------------------
+
+DIST_DIR = Path(__file__).resolve().parent.parent / "dist"
+
+
+@app.on_event("startup")
+async def _mount_frontend() -> None:
+    """Mount the built React app if the dist directory exists."""
+    if DIST_DIR.is_dir():
+        # Serve /assets/* directly
+        assets = DIST_DIR / "assets"
+        if assets.is_dir():
+            app.mount("/assets", StaticFiles(directory=str(assets)), name="assets")
+        logger.info("Serving frontend from %s", DIST_DIR)
+    else:
+        logger.warning("No frontend build found at %s — run `npm run build` first", DIST_DIR)
+
+
+@app.get("/{full_path:path}")
+async def serve_spa(request: Request, full_path: str) -> FileResponse | HTMLResponse:
+    """Catch-all: serve static files or fall back to index.html for SPA routing."""
+    # Try to serve an exact file match first (favicon, robots.txt, etc.)
+    file_path = DIST_DIR / full_path
+    if file_path.is_file():
+        return FileResponse(file_path)
+
+    # Fall back to index.html for client-side routing
+    index = DIST_DIR / "index.html"
+    if index.is_file():
+        return FileResponse(index)
+
+    return HTMLResponse(
+        content="<h1>Frontend not built</h1><p>Run <code>npm run build</code> then restart the server.</p>",
+        status_code=200,
+    )
