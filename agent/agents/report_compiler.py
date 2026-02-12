@@ -61,6 +61,18 @@ class ReportCompilerAgent(BaseAgent):
 strategic recommendations organized by priority (immediate, short-term, long-term).
 Each recommendation should include: the action, expected impact, and implementation notes.
 
+CRITICAL MARKDOWN FORMATTING RULES:
+1. Use markdown numbering (1., 2., 3.) for numbered lists, NOT hashtags (#)
+2. For sub-sections within numbered items, use markdown headings (###) or bold text (**text**)
+3. For nested lists, use proper indentation with hyphens (-) for bullets
+4. Never use # symbols within list items - they create headings, not list numbers
+
+Example format:
+1. **Priority 1: Action Name (Timeframe)**
+   - **Action:** What to do
+   - **Expected Impact:** Results
+   - **Implementation:** How to execute
+
 {data_bundle}""",
         )
 
@@ -71,6 +83,26 @@ Each recommendation should include: the action, expected impact, and implementat
             f"""Based on this brand intelligence data, write a competitive positioning analysis
 that includes: market position map, key differentiators, vulnerability assessment,
 and positioning opportunities.
+
+CRITICAL MARKDOWN FORMATTING RULES:
+1. For tables, ALWAYS include a header separator row with pipes and dashes:
+   | Column 1 | Column 2 |
+   |----------|----------|
+   | Data     | Data     |
+
+2. For numbered lists, use markdown numbering (1., 2., 3.) NOT hashtags (#):
+   1. First item
+   2. Second item
+      - Sub-bullet (use hyphens for bullets)
+
+3. For ASCII art diagrams, use triple backticks with no language specified:
+   ```
+   ASCII diagram here
+   ```
+
+4. Use proper markdown headings (##, ###) only for section titles, never for list items.
+
+5. Bold text uses **double asterisks**, not single.
 
 {data_bundle}""",
         )
