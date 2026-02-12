@@ -173,6 +173,52 @@ async def delete_job(job_id: str) -> dict[str, str]:
     return {"status": "deleted", "job_id": job_id}
 
 
+@app.get("/api/reports/{job_id}/html")
+async def get_html_report(job_id: str) -> FileResponse:
+    """Serve the HTML report for a completed job."""
+    if job_id not in _jobs:
+        raise HTTPException(status_code=404, detail=f"Job {job_id} not found")
+
+    job = _jobs[job_id]
+    html_path = job.get("html_report_path")
+
+    if not html_path:
+        raise HTTPException(status_code=404, detail="HTML report not found for this job")
+
+    html_file = Path(html_path)
+    if not html_file.exists():
+        raise HTTPException(status_code=404, detail="HTML report file does not exist")
+
+    return FileResponse(
+        html_file,
+        media_type="text/html",
+        filename=html_file.name
+    )
+
+
+@app.get("/api/reports/{job_id}/markdown")
+async def get_markdown_report(job_id: str) -> FileResponse:
+    """Serve the Markdown report for a completed job."""
+    if job_id not in _jobs:
+        raise HTTPException(status_code=404, detail=f"Job {job_id} not found")
+
+    job = _jobs[job_id]
+    report_path = job.get("report_path")
+
+    if not report_path:
+        raise HTTPException(status_code=404, detail="Markdown report not found for this job")
+
+    report_file = Path(report_path)
+    if not report_file.exists():
+        raise HTTPException(status_code=404, detail="Markdown report file does not exist")
+
+    return FileResponse(
+        report_file,
+        media_type="text/markdown",
+        filename=report_file.name
+    )
+
+
 # ---------------------------------------------------------------------------
 # Background job runner
 # ---------------------------------------------------------------------------

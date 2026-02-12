@@ -24,7 +24,7 @@ import {
   RefreshCw,
   Trash2,
   Copy,
-  Download,
+  FileText,
   ExternalLink,
 } from 'lucide-react';
 
@@ -101,21 +101,8 @@ const Dashboard: React.FC = () => {
     });
   };
 
-  const handleDownload = async (jobId: string, htmlPath: string) => {
-    try {
-      // In production, we'd need a download endpoint
-      // For now, just copy the path
-      navigator.clipboard.writeText(htmlPath);
-      toast({
-        title: 'Report path copied',
-        description: 'HTML report path copied to clipboard.',
-      });
-    } catch {
-      toast({
-        title: 'Could not access report',
-        variant: 'destructive',
-      });
-    }
+  const handleViewReport = (jobId: string) => {
+    window.open(`${API_BASE}/api/reports/${jobId}/html`, '_blank');
   };
 
   useEffect(() => {
@@ -228,10 +215,10 @@ const Dashboard: React.FC = () => {
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => handleDownload(job.job_id, job.html_report_path!)}
-                            title="Download HTML report"
+                            onClick={() => handleViewReport(job.job_id)}
+                            title="View HTML report"
                           >
-                            <Download className="w-4 h-4" />
+                            <FileText className="w-4 h-4" />
                           </Button>
                         )}
                         <Button

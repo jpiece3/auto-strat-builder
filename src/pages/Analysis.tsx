@@ -295,15 +295,13 @@ const Analysis: React.FC = () => {
                   </div>
                   <Button
                     size="sm"
-                    variant="outline"
+                    className="gradient-cta hover:opacity-90"
                     onClick={() => {
-                      if (status.html_report_path) {
-                        navigator.clipboard.writeText(status.html_report_path);
-                      }
+                      window.open(`${API_BASE}/api/reports/${jobId}/html`, '_blank');
                     }}
                   >
-                    <Download className="w-4 h-4 mr-1" />
-                    Copy Path
+                    <ExternalLink className="w-4 h-4 mr-1" />
+                    View Report
                   </Button>
                 </div>
               )}
@@ -323,13 +321,11 @@ const Analysis: React.FC = () => {
                     size="sm"
                     variant="outline"
                     onClick={() => {
-                      if (status.report_path) {
-                        navigator.clipboard.writeText(status.report_path);
-                      }
+                      window.open(`${API_BASE}/api/reports/${jobId}/markdown`, '_blank');
                     }}
                   >
-                    <Download className="w-4 h-4 mr-1" />
-                    Copy Path
+                    <ExternalLink className="w-4 h-4 mr-1" />
+                    View Report
                   </Button>
                 </div>
               )}
