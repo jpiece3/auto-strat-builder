@@ -204,7 +204,7 @@ async def _mount_frontend() -> None:
         logger.warning("No frontend build found at %s — run `npm run build` first", DIST_DIR)
 
 
-@app.get("/{full_path:path}")
+@app.get("/{full_path:path}", response_model=None)
 async def serve_spa(request: Request, full_path: str) -> FileResponse | HTMLResponse:
     """Catch-all: serve static files or fall back to index.html for SPA routing."""
     # Try to serve an exact file match first (favicon, robots.txt, etc.)
