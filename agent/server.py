@@ -74,6 +74,7 @@ class JobStatusResponse(BaseModel):
     completed_at: str | None = None
     report_path: str | None = None
     html_report_path: str | None = None
+    competitive_intel_path: str | None = None
     errors: list[str] = []
     tasks_completed: int = 0
     tasks_total: int = 5
@@ -108,6 +109,7 @@ async def start_analysis(request: BrandQueryRequest) -> JobResponse:
         "completed_at": None,
         "report_path": None,
         "html_report_path": None,
+        "competitive_intel_path": None,
         "errors": [],
         "tasks_completed": 0,
         "query": query,
@@ -139,6 +141,7 @@ async def get_status(job_id: str) -> JobStatusResponse:
         completed_at=job.get("completed_at"),
         report_path=job.get("report_path"),
         html_report_path=job.get("html_report_path"),
+        competitive_intel_path=job.get("competitive_intel_path"),
         errors=job.get("errors", []),
         tasks_completed=job.get("tasks_completed", 0),
     )
@@ -157,6 +160,7 @@ async def list_jobs() -> list[dict[str, Any]]:
             "website_url": j.get("website_url", ""),
             "report_path": j.get("report_path"),
             "html_report_path": j.get("html_report_path"),
+            "competitive_intel_path": j.get("competitive_intel_path"),
         }
         for jid, j in _jobs.items()
     ]
@@ -219,6 +223,29 @@ async def get_markdown_report(job_id: str) -> FileResponse:
     )
 
 
+@app.get("/api/reports/{job_id}/competitive-intel")
+async def get_competitive_intel(job_id: str) -> FileResponse:
+    """Serve the competitive intelligence JSON for a completed job."""
+    if job_id not in _jobs:
+        raise HTTPException(status_code=404, detail=f"Job {job_id} not found")
+
+    job = _jobs[job_id]
+    competitive_intel_path = job.get("competitive_intel_path")
+
+    if not competitive_intel_path:
+        raise HTTPException(status_code=404, detail="Competitive intelligence report not found for this job")
+
+    intel_file = Path(competitive_intel_path)
+    if not intel_file.exists():
+        raise HTTPException(status_code=404, detail="Competitive intelligence file does not exist")
+
+    return FileResponse(
+        intel_file,
+        media_type="application/json",
+        filename=intel_file.name
+    )
+
+
 # ---------------------------------------------------------------------------
 # Background job runner
 # ---------------------------------------------------------------------------
@@ -236,6 +263,7 @@ async def _run_job(job_id: str, query: BrandQuery) -> None:
         _jobs[job_id]["completed_at"] = state.completed_at
         _jobs[job_id]["report_path"] = state.report_path
         _jobs[job_id]["html_report_path"] = getattr(state, 'html_report_path', None)
+        _jobs[job_id]["competitive_intel_path"] = getattr(state, 'competitive_intel_path', None)
         _jobs[job_id]["errors"] = state.errors
         _jobs[job_id]["tasks_completed"] = sum(
             1 for t in state.task_results if t.status == TaskStatus.COMPLETED

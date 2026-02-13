@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
 import {
   ArrowLeft,
   TrendingUp,
@@ -11,9 +11,12 @@ import {
   ExternalLink,
   ChevronDown,
   ChevronUp,
+  Loader2,
 } from 'lucide-react';
 
-// Sample data structure - in production this would come from API
+const API_BASE = import.meta.env.VITE_API_URL || '';
+
+// Sample data structure - used as fallback
 const sampleData = {
   "analysis_metadata": {
     "client_company": "Psycho Bunny",
@@ -138,7 +141,11 @@ const sampleData = {
 };
 
 const CompetitiveIntel: React.FC = () => {
+  const { jobId } = useParams<{ jobId: string }>();
   const navigate = useNavigate();
+  const [data, setData] = useState<typeof sampleData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [selectedCompetitor, setSelectedCompetitor] = useState(0);
   const [expandedSections, setExpandedSections] = useState<{[key: string]: boolean}>({
     valueProp: true,
@@ -148,11 +155,97 @@ const CompetitiveIntel: React.FC = () => {
     strengths: false
   });
 
+  // Fetch competitive intelligence data
+  useEffect(() => {
+    if (!jobId) return;
+
+    const fetchData = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        const res = await fetch(`${API_BASE}/api/reports/${jobId}/competitive-intel`);
+
+        if (!res.ok) {
+          throw new Error(`Failed to fetch competitive intelligence: ${res.statusText}`);
+        }
+
+        const intelData = await res.json();
+        setData(intelData);
+      } catch (err) {
+        console.error('Error fetching competitive intelligence:', err);
+        setError(err instanceof Error ? err.message : 'Failed to load competitive intelligence');
+        // Fallback to sample data if fetch fails
+        setData(sampleData);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, [jobId]);
+
   const toggleSection = (section: string) => {
     setExpandedSections(prev => ({ ...prev, [section]: !prev[section] }));
   };
 
-  const competitor = sampleData.competitors[selectedCompetitor];
+  // Show loading state
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background">
+        <nav className="header-sharp sticky top-0 z-50">
+          <div className="container mx-auto px-4 h-16 flex items-center justify-between">
+            <div className="flex items-center gap-3 cursor-pointer" onClick={() => navigate('/')}>
+              <img src="/logo.png" alt="Brothers Automate" className="h-9" />
+              <span className="font-bold text-lg uppercase tracking-wide">
+                Intelligence
+              </span>
+            </div>
+            <button onClick={() => navigate('/dashboard')} className="btn-sharp-secondary text-xs py-2 px-4">
+              <ArrowLeft className="w-4 h-4 mr-1" /> Dashboard
+            </button>
+          </div>
+        </nav>
+        <div className="container mx-auto px-4 py-20 flex flex-col items-center justify-center">
+          <Loader2 className="w-12 h-12 text-[#ed8936] animate-spin mb-4" />
+          <p className="stat-label-sharp">Loading competitive intelligence...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show error state
+  if (error && !data) {
+    return (
+      <div className="min-h-screen bg-background">
+        <nav className="header-sharp sticky top-0 z-50">
+          <div className="container mx-auto px-4 h-16 flex items-center justify-between">
+            <div className="flex items-center gap-3 cursor-pointer" onClick={() => navigate('/')}>
+              <img src="/logo.png" alt="Brothers Automate" className="h-9" />
+              <span className="font-bold text-lg uppercase tracking-wide">
+                Intelligence
+              </span>
+            </div>
+            <button onClick={() => navigate('/dashboard')} className="btn-sharp-secondary text-xs py-2 px-4">
+              <ArrowLeft className="w-4 h-4 mr-1" /> Dashboard
+            </button>
+          </div>
+        </nav>
+        <div className="container mx-auto px-4 py-20">
+          <div className="card-sharp p-6 border-destructive bg-destructive/5 max-w-2xl mx-auto">
+            <h2 className="text-xl font-bold text-destructive mb-3 uppercase tracking-wide">Error Loading Data</h2>
+            <p className="text-muted-foreground mb-4">{error}</p>
+            <button onClick={() => navigate('/dashboard')} className="btn-sharp-primary py-2 px-4 text-xs">
+              Back to Dashboard
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Use fetched data or fallback to sample data
+  const intelData = data || sampleData;
+  const competitor = intelData.competitors[selectedCompetitor];
 
   const getSaturationColor = (saturation: string) => {
     switch (saturation.toLowerCase()) {
@@ -198,11 +291,11 @@ const CompetitiveIntel: React.FC = () => {
                 Competitive Intelligence
               </h1>
               <p className="stat-label-sharp">
-                {sampleData.analysis_metadata.client_company} · {sampleData.analysis_metadata.client_industry} · {sampleData.analysis_metadata.analysis_date}
+                {intelData.analysis_metadata.client_company} · {intelData.analysis_metadata.client_industry} · {intelData.analysis_metadata.analysis_date}
               </p>
             </div>
             <span className="badge-sharp-accent">
-              {sampleData.analysis_metadata.date_range_days} Day Analysis
+              {intelData.analysis_metadata.date_range_days} Day Analysis
             </span>
           </div>
 
@@ -210,19 +303,19 @@ const CompetitiveIntel: React.FC = () => {
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div className="card-sharp bg-card p-4">
               <div className="stat-label-sharp mb-2">Competitors Analyzed</div>
-              <div className="text-2xl font-bold text-foreground">{sampleData.competitors.length}</div>
+              <div className="text-2xl font-bold text-foreground">{intelData.competitors.length}</div>
             </div>
             <div className="card-sharp bg-card p-4">
               <div className="stat-label-sharp mb-2">Market Segments</div>
-              <div className="text-2xl font-bold text-foreground">{sampleData.landscape.market_segments_served.length}</div>
+              <div className="text-2xl font-bold text-foreground">{intelData.landscape.market_segments_served.length}</div>
             </div>
             <div className="card-sharp bg-card p-4">
               <div className="stat-label-sharp mb-2">White Space Opportunities</div>
-              <div className="text-2xl font-bold text-foreground">{sampleData.white_space.underserved_segments.length}</div>
+              <div className="text-2xl font-bold text-foreground">{intelData.white_space.underserved_segments.length}</div>
             </div>
             <div className="card-sharp bg-card p-4">
               <div className="stat-label-sharp mb-2">Messaging Clusters</div>
-              <div className="text-2xl font-bold text-foreground">{sampleData.landscape.messaging_clusters.length}</div>
+              <div className="text-2xl font-bold text-foreground">{intelData.landscape.messaging_clusters.length}</div>
             </div>
           </div>
         </div>
@@ -236,7 +329,7 @@ const CompetitiveIntel: React.FC = () => {
 
           {/* Competitor Selector */}
           <div className="flex gap-3 mb-6 overflow-x-auto pb-2">
-            {sampleData.competitors.map((comp, idx) => (
+            {intelData.competitors.map((comp, idx) => (
               <button
                 key={comp.name}
                 onClick={() => setSelectedCompetitor(idx)}
@@ -461,7 +554,7 @@ const CompetitiveIntel: React.FC = () => {
           <div className="mb-6">
             <h3 className="text-lg font-semibold uppercase text-sm tracking-wide text-foreground mb-4">Market Segments Served</h3>
             <div className="space-y-3">
-              {sampleData.landscape.market_segments_served.map((segment, idx) => (
+              {intelData.landscape.market_segments_served.map((segment, idx) => (
                 <div key={idx} className="card-sharp bg-card p-4">
                   <div className="flex items-start justify-between mb-3">
                     <div>
@@ -486,7 +579,7 @@ const CompetitiveIntel: React.FC = () => {
           <div className="mb-6">
             <h3 className="text-lg font-semibold uppercase text-sm tracking-wide text-foreground mb-4">Pricing Distribution</h3>
             <div className="space-y-3">
-              {sampleData.landscape.pricing_distribution.map((pricing, idx) => (
+              {intelData.landscape.pricing_distribution.map((pricing, idx) => (
                 <div key={idx} className="card-sharp bg-card p-4">
                   <div className="flex items-start justify-between mb-3">
                     <div className="flex-1">
@@ -512,7 +605,7 @@ const CompetitiveIntel: React.FC = () => {
           <div>
             <h3 className="text-lg font-semibold uppercase text-sm tracking-wide text-foreground mb-4">Messaging Clusters</h3>
             <div className="space-y-3">
-              {sampleData.landscape.messaging_clusters.map((cluster, idx) => (
+              {intelData.landscape.messaging_clusters.map((cluster, idx) => (
                 <div key={idx} className="card-sharp bg-card p-4">
                   <div className="flex items-start justify-between mb-3">
                     <div className="flex-1">
@@ -548,7 +641,7 @@ const CompetitiveIntel: React.FC = () => {
           <div className="mb-8">
             <h3 className="text-lg font-semibold uppercase text-sm tracking-wide text-foreground mb-4">Underserved Segments</h3>
             <div className="space-y-4">
-              {sampleData.white_space.underserved_segments.map((segment, idx) => (
+              {intelData.white_space.underserved_segments.map((segment, idx) => (
                 <div key={idx} className="card-sharp bg-card p-5">
                   <div className="flex items-start justify-between mb-4">
                     <div className="flex-1">
@@ -583,13 +676,13 @@ const CompetitiveIntel: React.FC = () => {
             <div className="space-y-6">
               <div>
                 <div className="stat-label-sharp mb-2">Recommended Position</div>
-                <p className="text-foreground font-medium leading-relaxed">{sampleData.white_space.positioning_recommendation.recommended_position}</p>
+                <p className="text-foreground font-medium leading-relaxed">{intelData.white_space.positioning_recommendation.recommended_position}</p>
               </div>
 
               <div>
                 <div className="stat-label-sharp mb-3">Key Differentiators to Emphasize</div>
                 <ul className="space-y-2">
-                  {sampleData.white_space.positioning_recommendation.key_differentiators_to_emphasize.map((diff, idx) => (
+                  {intelData.white_space.positioning_recommendation.key_differentiators_to_emphasize.map((diff, idx) => (
                     <li key={idx} className="flex items-start gap-2 text-sm text-muted-foreground">
                       <span className="text-[#ed8936] font-bold mt-0.5">{idx + 1}.</span>
                       {diff}
@@ -601,17 +694,17 @@ const CompetitiveIntel: React.FC = () => {
               <div className="grid md:grid-cols-2 gap-6">
                 <div>
                   <div className="stat-label-sharp mb-2">Messaging Angle</div>
-                  <p className="text-sm text-muted-foreground">{sampleData.white_space.positioning_recommendation.messaging_angle_to_adopt}</p>
+                  <p className="text-sm text-muted-foreground">{intelData.white_space.positioning_recommendation.messaging_angle_to_adopt}</p>
                 </div>
                 <div>
                   <div className="stat-label-sharp mb-2">Target Segment</div>
-                  <p className="text-sm text-muted-foreground">{sampleData.white_space.positioning_recommendation.target_segment_to_prioritize}</p>
+                  <p className="text-sm text-muted-foreground">{intelData.white_space.positioning_recommendation.target_segment_to_prioritize}</p>
                 </div>
               </div>
 
               <div className="bg-background p-4" style={{borderRadius: '4px'}}>
                 <div className="stat-label-sharp mb-2">Strategic Rationale</div>
-                <p className="text-xs text-muted-foreground leading-relaxed">{sampleData.white_space.positioning_recommendation.rationale}</p>
+                <p className="text-xs text-muted-foreground leading-relaxed">{intelData.white_space.positioning_recommendation.rationale}</p>
               </div>
             </div>
           </div>

@@ -128,11 +128,19 @@ CRITICAL MARKDOWN FORMATTING RULES:
         md_path.write_text(report_md, encoding="utf-8")
         self.logger.info("Report written to: %s", md_path)
 
-        # JSON data export
+        # JSON data export (original format)
         json_path = output_dir / f"{safe_name}_data_{timestamp}.json"
         json_data = self._export_json(state)
         json_path.write_text(json.dumps(json_data, indent=2, default=str), encoding="utf-8")
         self.logger.info("Data export written to: %s", json_path)
+
+        # Competitive Intelligence JSON (enhanced format for dashboard)
+        log_agent_step(self.logger, self.name, "COMPETITIVE_INTEL", "Generating competitive intelligence analysis")
+        intel_json_path = output_dir / f"{safe_name}_competitive_intel_{timestamp}.json"
+        intel_data = await self._generate_competitive_intel_json(state, data_bundle)
+        intel_json_path.write_text(json.dumps(intel_data, indent=2, default=str), encoding="utf-8")
+        self.logger.info("Competitive intelligence JSON written to: %s", intel_json_path)
+        state.competitive_intel_path = str(intel_json_path)
 
         # HTML report
         html_path = output_dir / f"{safe_name}_intelligence_{timestamp}.html"
@@ -321,6 +329,204 @@ CRITICAL MARKDOWN FORMATTING RULES:
                 "task_results": [_serialize(t) for t in state.task_results],
                 "errors": state.errors,
             },
+        }
+
+    async def _generate_competitive_intel_json(self, state: WorkflowState, data_bundle: str) -> dict[str, Any]:
+        """Generate enhanced competitive intelligence JSON with LLM analysis."""
+        brand = state.brand
+        if not brand:
+            return {}
+
+        now = datetime.utcnow().strftime("%Y-%m-%d")
+
+        # Use LLM to analyze competitors and generate enhanced structure
+        competitor_analysis = await self.llm.complete(
+            REPORT_SYSTEM,
+            f"""Based on this brand intelligence data, generate a detailed competitive analysis for EACH competitor.
+For each competitor, provide:
+
+1. **value_proposition**:
+   - primary_claim: One sentence describing their core value prop
+   - headline: Their main marketing headline/tagline
+   - target_audience: Who they target (be specific about segments)
+   - key_differentiators: List 3-5 unique differentiators
+   - proof_points: List 3-5 proof points (awards, partnerships, metrics, etc.)
+
+2. **positioning_dimensions**:
+   - price_tier: "low", "mid", or "high"
+   - target_segment: "single_segment", "multi_segment", or "niche"
+   - messaging_style: "technical", "business_value", or "emotional"
+   - brand_personality: "innovative", "authoritative", "friendly", or "disruptive"
+   - funnel_focus: "awareness", "consideration", "conversion", or "full_funnel"
+   - geographic_focus: "local", "regional", "national", or "global"
+
+3. **keyword_strategy**:
+   - analysis: 2-3 sentence analysis of their keyword strategy
+   - intent_distribution:
+     * navigational_percent: % of navigational keywords
+     * informational_percent: % of informational keywords
+     * transactional_percent: % of transactional keywords
+     * top_themes: List 5-7 main keyword themes
+
+4. **ad_strategy**:
+   - primary_platforms: List main advertising platforms
+   - estimated_platform_allocation: Object with platform percentages
+   - creative_velocity: "Low", "Medium", "High", or "Very High"
+   - dominant_format: Main ad format they use
+   - visual_style: Description of their visual aesthetic
+   - core_messaging_angles: List 5-7 main messaging angles
+   - brand_personality: How they present themselves in ads
+
+5. **competitive_strengths**: List 3-5 strengths
+6. **competitive_weaknesses**: List 3-5 weaknesses
+
+Return ONLY valid JSON array of competitor objects. No markdown, no code blocks, just raw JSON.
+
+{data_bundle}""",
+        )
+
+        # Parse LLM response as JSON
+        try:
+            competitors_data = json.loads(competitor_analysis)
+        except json.JSONDecodeError:
+            # If LLM didn't return valid JSON, create basic structure from existing data
+            self.logger.warning("Failed to parse competitor analysis JSON, using basic structure")
+            competitors_data = [
+                {
+                    "name": c.name,
+                    "domain": c.domain,
+                    "value_proposition": {
+                        "primary_claim": c.description,
+                        "headline": c.description,
+                        "target_audience": "Not analyzed",
+                        "key_differentiators": c.key_differentiators or [],
+                        "proof_points": []
+                    },
+                    "positioning_dimensions": {
+                        "price_tier": "mid",
+                        "target_segment": "multi_segment",
+                        "messaging_style": "business_value",
+                        "brand_personality": "professional",
+                        "funnel_focus": "full_funnel",
+                        "geographic_focus": "national"
+                    },
+                    "keyword_strategy": {
+                        "analysis": "Keyword strategy analysis pending",
+                        "intent_distribution": {
+                            "navigational_percent": 40,
+                            "informational_percent": 35,
+                            "transactional_percent": 25,
+                            "top_themes": []
+                        }
+                    },
+                    "ad_strategy": {
+                        "primary_platforms": ["Unknown"],
+                        "estimated_platform_allocation": {},
+                        "creative_velocity": "Medium",
+                        "dominant_format": "Unknown",
+                        "visual_style": "Not analyzed",
+                        "core_messaging_angles": [],
+                        "brand_personality": "Professional"
+                    },
+                    "competitive_strengths": c.strengths or [],
+                    "competitive_weaknesses": c.weaknesses or []
+                }
+                for c in brand.competitors
+            ]
+
+        # Generate landscape analysis with LLM
+        landscape_analysis = await self.llm.complete(
+            REPORT_SYSTEM,
+            f"""Based on this competitive intelligence data, analyze the market landscape:
+
+1. **market_segments_served**: Identify 3-5 distinct market segments being served. For each:
+   - segment: Name of the segment
+   - competitors_targeting: List competitors targeting this segment
+   - saturation: "Low", "Medium", "High", or "Very High"
+   - key_players: Description of who dominates this segment
+
+2. **pricing_distribution**: Identify 2-4 pricing tiers. For each:
+   - tier: Description (e.g., "Premium ($100-200 per item)")
+   - examples: Examples of products at this price point
+   - competitors: List competitors in this tier
+   - positioning: How this tier is positioned
+
+3. **messaging_clusters**: Identify 3-5 common messaging themes. For each:
+   - cluster: Name of the messaging theme
+   - core_message: Core message in this theme
+   - competitors_using: List competitors using this messaging
+   - intensity: "Low", "Medium", "High", or "Very High"
+   - effectiveness_signal: Evidence of effectiveness
+
+Return ONLY valid JSON with these three objects. No markdown, no code blocks.
+
+{data_bundle}""",
+        )
+
+        # Parse landscape analysis
+        try:
+            landscape_data = json.loads(landscape_analysis)
+        except json.JSONDecodeError:
+            self.logger.warning("Failed to parse landscape analysis JSON, using default structure")
+            landscape_data = {
+                "market_segments_served": [],
+                "pricing_distribution": [],
+                "messaging_clusters": []
+            }
+
+        # Generate white space analysis with LLM
+        whitespace_analysis = await self.llm.complete(
+            REPORT_SYSTEM,
+            f"""Based on this competitive intelligence data, identify white space opportunities:
+
+1. **underserved_segments**: List 3-5 underserved market segments. For each:
+   - segment: Name of the underserved segment
+   - evidence: Evidence that this segment is underserved
+   - saturation: "Low", "Medium", "High"
+   - opportunity_size: "Low", "Medium", "High", or "Medium-High"
+   - why_underserved: Explanation of why this segment is underserved
+
+2. **positioning_recommendation**: Provide ONE strategic positioning recommendation with:
+   - recommended_position: A clear positioning statement (1-2 sentences)
+   - key_differentiators_to_emphasize: List 3-6 differentiators to emphasize
+   - messaging_angle_to_adopt: The messaging angle to use (1-2 sentences)
+   - target_segment_to_prioritize: Which segment to focus on (1-2 sentences)
+   - rationale: Strategic rationale (2-3 sentences explaining why this positioning)
+
+Return ONLY valid JSON with these two objects. No markdown, no code blocks.
+
+{data_bundle}""",
+        )
+
+        # Parse white space analysis
+        try:
+            whitespace_data = json.loads(whitespace_analysis)
+        except json.JSONDecodeError:
+            self.logger.warning("Failed to parse whitespace analysis JSON, using default structure")
+            whitespace_data = {
+                "underserved_segments": [],
+                "positioning_recommendation": {
+                    "recommended_position": "Analysis pending",
+                    "key_differentiators_to_emphasize": [],
+                    "messaging_angle_to_adopt": "To be determined",
+                    "target_segment_to_prioritize": "To be determined",
+                    "rationale": "Requires deeper analysis"
+                }
+            }
+
+        # Assemble final competitive intelligence JSON
+        return {
+            "analysis_metadata": {
+                "client_company": brand.brand_name,
+                "client_domain": brand.domain,
+                "client_industry": state.query.industry or "Not specified",
+                "analysis_date": now,
+                "date_range_days": 180,  # Default to 180 days
+                "region": "Global"  # Default - could be made configurable
+            },
+            "competitors": competitors_data,
+            "landscape": landscape_data,
+            "white_space": whitespace_data
         }
 
     def _generate_html_report(

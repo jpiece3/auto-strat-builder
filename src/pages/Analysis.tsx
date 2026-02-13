@@ -282,6 +282,29 @@ const Analysis: React.FC = () => {
 
             {/* Download options */}
             <div className="space-y-3 mb-6">
+              {status?.competitive_intel_path && (
+                <div className="flex items-center justify-between p-4 bg-background border border-[#ed8936]" style={{borderRadius: '4px'}}>
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-[#ed8936] flex items-center justify-center" style={{borderRadius: '4px'}}>
+                      <BarChart3 className="w-5 h-5 text-white" />
+                    </div>
+                    <div>
+                      <div className="font-bold text-sm uppercase tracking-wide">Competitive Intelligence</div>
+                      <div className="text-xs text-muted-foreground">Interactive strategic dashboard</div>
+                    </div>
+                  </div>
+                  <button
+                    className="btn-sharp-primary py-2 px-4 text-xs"
+                    onClick={() => {
+                      navigate(`/competitive-intel/${jobId}`);
+                    }}
+                  >
+                    <ExternalLink className="w-4 h-4 mr-1" />
+                    View Dashboard
+                  </button>
+                </div>
+              )}
+
               {status?.html_report_path && (
                 <div className="flex items-center justify-between p-4 bg-background border border-border" style={{borderRadius: '4px'}}>
                   <div className="flex items-center gap-3">

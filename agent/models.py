@@ -181,6 +181,7 @@ class WorkflowState:
     completed_at: str = ""
     report_path: str = ""
     html_report_path: str = ""
+    competitive_intel_path: str = ""
     errors: list[str] = field(default_factory=list)
 
     @property

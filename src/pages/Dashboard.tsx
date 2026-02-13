@@ -23,6 +23,7 @@ import {
   Copy,
   FileText,
   ExternalLink,
+  BarChart3,
 } from 'lucide-react';
 
 const API_BASE = import.meta.env.VITE_API_URL || '';
@@ -36,6 +37,7 @@ interface Job {
   website_url?: string;
   report_path?: string;
   html_report_path?: string;
+  competitive_intel_path?: string;
 }
 
 const STATUS_CONFIG: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline'; icon: React.ReactNode }> = {
@@ -208,6 +210,16 @@ const Dashboard: React.FC = () => {
                         >
                           <ExternalLink className="w-4 h-4" />
                         </button>
+                        {job.status === 'completed' && job.competitive_intel_path && (
+                          <button
+                            onClick={() => navigate(`/competitive-intel/${job.job_id}`)}
+                            title="View competitive intelligence"
+                            className="p-2 hover:bg-[#ed8936]/10 text-[#ed8936] transition-colors"
+                            style={{borderRadius: '2px'}}
+                          >
+                            <BarChart3 className="w-4 h-4" />
+                          </button>
+                        )}
                         {job.status === 'completed' && job.html_report_path && (
                           <button
                             onClick={() => handleViewReport(job.job_id)}
