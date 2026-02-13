@@ -178,6 +178,12 @@
     border-bottom: 3px solid hsl(var(--border-accent));
   }
 
+  .header-sharp img {
+    background: white;
+    padding: 4px 12px;
+    border-radius: 4px;
+  }
+
   /* Sharp UI Stats */
   .stat-sharp {
     font-family: 'Plus Jakarta Sans', monospace;
