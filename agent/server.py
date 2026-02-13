@@ -27,7 +27,7 @@ from agent.models import BrandQuery, TaskStatus
 from agent.utils.logging import get_logger
 from agent.workflows.brand_intelligence import BrandIntelligenceWorkflow
 
-resend.api_key = os.getenv("RESEND_API_KEY", "re_bhQT26Mo_5THLuumckeida4QP6S5gNasv")
+resend.api_key = os.getenv("RESEND_API_KEY", "")
 
 logger = get_logger("server")
 
