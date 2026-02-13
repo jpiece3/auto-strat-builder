@@ -158,6 +158,29 @@ class BrandDiscoveryAgent(BaseAgent):
             brand.swot["strengths"] = profile_data.get("strengths", [])
             brand.swot["weaknesses"] = profile_data.get("weaknesses", [])
 
+        # Phase 5: Fetch visual identity from brand.dev
+        branddev = self.skills.get("branddev")
+        if branddev:
+            log_agent_step(self.logger, self.name, "VISUAL_IDENTITY", "Fetching brand colors/logos from brand.dev")
+            try:
+                # Extract domain from URL
+                from urllib.parse import urlparse
+                parsed = urlparse(query.website_url)
+                domain = parsed.netloc or parsed.path
+                domain = domain.replace("www.", "")
+
+                visual_identity = await branddev.fetch_brand(domain)
+                if visual_identity:
+                    brand.visual_identity = visual_identity
+                    log_agent_step(
+                        self.logger, self.name, "VISUAL_IDENTITY",
+                        f"Got {len(visual_identity.colors)} colors, {len(visual_identity.logos)} logos",
+                    )
+                else:
+                    log_agent_step(self.logger, self.name, "VISUAL_IDENTITY", "No brand.dev data, will use fallback theme")
+            except Exception as exc:
+                self.logger.warning("brand.dev visual identity fetch failed: %s", exc)
+
         state.brand = brand
         log_agent_step(self.logger, self.name, "DONE", f"Profiled {brand.brand_name} ({len(pages)} pages)")
         return state

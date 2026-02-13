@@ -49,6 +49,11 @@ class DataForSEOConfig:
 
 
 @dataclass(frozen=True)
+class BrandDevConfig:
+    api_key: str = field(default_factory=lambda: os.getenv("BRAND_DEV_API_KEY", ""))
+
+
+@dataclass(frozen=True)
 class LLMConfig:
     provider: str = field(default_factory=lambda: os.getenv("LLM_PROVIDER", "anthropic"))
     api_key: str = field(default_factory=lambda: os.getenv("ANTHROPIC_API_KEY", os.getenv("OPENAI_API_KEY", "")))
@@ -65,6 +70,7 @@ class AgentConfig:
     tavily: TavilyConfig = field(default_factory=TavilyConfig)
     playwright: PlaywrightConfig = field(default_factory=PlaywrightConfig)
     dataforseo: DataForSEOConfig = field(default_factory=DataForSEOConfig)
+    branddev: BrandDevConfig = field(default_factory=BrandDevConfig)
     llm: LLMConfig = field(default_factory=LLMConfig)
 
     output_dir: Path = field(
@@ -83,6 +89,8 @@ class AgentConfig:
             warnings.append("TAVILY_API_KEY is not set")
         if not self.dataforseo.login or not self.dataforseo.password:
             warnings.append("DATAFORSEO_LOGIN / DATAFORSEO_PASSWORD not set")
+        if not self.branddev.api_key:
+            warnings.append("BRAND_DEV_API_KEY is not set — brand theming will use fallback")
         if not self.llm.api_key:
             warnings.append("LLM API key (ANTHROPIC_API_KEY or OPENAI_API_KEY) not set")
         return warnings

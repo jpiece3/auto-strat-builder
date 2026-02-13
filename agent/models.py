@@ -117,6 +117,43 @@ class SocialPresence:
 
 
 @dataclass
+class BrandColor:
+    """A single color from the brand's palette."""
+    hex: str
+    name: str = ""
+    role: str = ""  # "primary", "secondary", "accent"
+
+
+@dataclass
+class BrandLogo:
+    """A logo variant from the brand."""
+    url: str
+    mode: str = ""    # "light", "dark"
+    type: str = ""    # "icon", "logo"
+    width: int = 0
+    height: int = 0
+
+
+@dataclass
+class BrandTypography:
+    """Brand typography settings."""
+    heading_font: str = ""
+    body_font: str = ""
+    heading_weight: str = "700"
+    body_weight: str = "400"
+
+
+@dataclass
+class BrandVisualIdentity:
+    """Visual identity data fetched from brand.dev or fallback."""
+    colors: list[BrandColor] = field(default_factory=list)
+    logos: list[BrandLogo] = field(default_factory=list)
+    typography: BrandTypography = field(default_factory=BrandTypography)
+    slogan: str = ""
+    source: str = ""  # "brand_dev" or "fallback"
+
+
+@dataclass
 class ContentAnalysis:
     total_pages: int = 0
     blog_posts: int = 0
@@ -145,6 +182,7 @@ class BrandProfile:
     content: ContentAnalysis | None = None
     social: list[SocialPresence] = field(default_factory=list)
     competitors: list[CompetitorProfile] = field(default_factory=list)
+    visual_identity: BrandVisualIdentity | None = None
     market_trends: list[str] = field(default_factory=list)
     swot: dict[str, list[str]] = field(default_factory=lambda: {
         "strengths": [],

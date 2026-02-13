@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useBrandTheme } from '@/lib/theme-context';
 import { toast } from '@/hooks/use-toast';
 import {
   AlertDialog,
@@ -48,6 +49,7 @@ const STATUS_CONFIG: Record<string, { label: string; variant: 'default' | 'secon
 
 const Dashboard: React.FC = () => {
   const navigate = useNavigate();
+  const { resetTheme } = useBrandTheme();
   const [jobs, setJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState(true);
   const [serverUp, setServerUp] = useState(true);
@@ -104,6 +106,11 @@ const Dashboard: React.FC = () => {
     window.open(`${API_BASE}/api/reports/${jobId}/html`, '_blank');
   };
 
+  // Reset theme to defaults when visiting dashboard
+  useEffect(() => {
+    resetTheme();
+  }, [resetTheme]);
+
   useEffect(() => {
     fetchJobs();
     const interval = setInterval(fetchJobs, 5000);
@@ -152,7 +159,7 @@ const Dashboard: React.FC = () => {
 
         {loading && (
           <div className="text-center py-20">
-            <Loader2 className="w-8 h-8 text-[#1a365d] animate-spin mx-auto mb-3" />
+            <Loader2 className="w-8 h-8 text-primary animate-spin mx-auto mb-3" />
             <p className="stat-label-sharp">Loading jobs...</p>
           </div>
         )}
@@ -214,7 +221,7 @@ const Dashboard: React.FC = () => {
                           <button
                             onClick={() => navigate(`/competitive-intel/${job.job_id}`)}
                             title="View competitive intelligence"
-                            className="p-2 hover:bg-[#ed8936]/10 text-[#ed8936] transition-colors"
+                            className="p-2 hover:bg-brand-accent/10 text-brand-accent transition-colors"
                             style={{borderRadius: '2px'}}
                           >
                             <BarChart3 className="w-4 h-4" />

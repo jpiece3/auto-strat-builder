@@ -14,6 +14,7 @@ from agent.agents.seo_analyst import SEOAnalystAgent
 from agent.agents.web_presence import WebPresenceAgent
 from agent.config import AgentConfig
 from agent.models import BrandQuery, TaskStatus, WorkflowState
+from agent.skills.branddev_skill import BrandDevSkill
 from agent.skills.dataforseo_skill import DataForSEOSkill
 from agent.skills.firecrawl_skill import FirecrawlSkill
 from agent.skills.playwright_skill import PlaywrightSkill
@@ -80,6 +81,11 @@ class BrandIntelligenceWorkflow:
             self._skills["dataforseo"] = DataForSEOSkill(self.config.dataforseo)
         else:
             logger.warning("DataForSEO skill disabled: no credentials")
+
+        if self.config.branddev.api_key:
+            self._skills["branddev"] = BrandDevSkill(self.config.branddev)
+        else:
+            logger.warning("brand.dev skill disabled: no API key — reports will use fallback theme")
 
         # Playwright doesn't need an API key
         self._skills["playwright"] = PlaywrightSkill(self.config.playwright)

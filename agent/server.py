@@ -19,6 +19,7 @@ from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
+from agent.agents.report_compiler import BROTHERS_AUTOMATE_THEME, ReportCompilerAgent
 from agent.config import AgentConfig
 from agent.models import BrandQuery, TaskStatus
 from agent.utils.logging import get_logger
@@ -67,6 +68,29 @@ class JobResponse(BaseModel):
     message: str
 
 
+class BrandThemeResponse(BaseModel):
+    primary: str = "#1a365d"
+    primary_light: str = "#2c5282"
+    accent: str = "#ed8936"
+    accent_dark: str = "#dd6b20"
+    background: str = "#fdfcfa"
+    card_bg: str = "#ffffff"
+    text_primary: str = "#1a365d"
+    text_secondary: str = "#64748b"
+    text_muted: str = "#94a3b8"
+    border: str = "#e8e6e1"
+    success: str = "#16a34a"
+    blue: str = "#3182ce"
+    font_heading: str = "Plus Jakarta Sans"
+    font_body: str = "Plus Jakarta Sans"
+    logo_url: str = ""
+    tagline: str = "Simple AI. Smart Results."
+    footer_text: str = "Brothers Automate Intelligence Agent v0.1.0"
+    header_text_color: str = "#ffffff"
+    source: str = "fallback"
+    brand_name: str = ""
+
+
 class JobStatusResponse(BaseModel):
     job_id: str
     status: str
@@ -75,6 +99,7 @@ class JobStatusResponse(BaseModel):
     report_path: str | None = None
     html_report_path: str | None = None
     competitive_intel_path: str | None = None
+    brand_theme: BrandThemeResponse | None = None
     errors: list[str] = []
     tasks_completed: int = 0
     tasks_total: int = 5
@@ -110,6 +135,7 @@ async def start_analysis(request: BrandQueryRequest) -> JobResponse:
         "report_path": None,
         "html_report_path": None,
         "competitive_intel_path": None,
+        "brand_theme": None,
         "errors": [],
         "tasks_completed": 0,
         "query": query,
@@ -134,6 +160,9 @@ async def get_status(job_id: str) -> JobStatusResponse:
         raise HTTPException(status_code=404, detail=f"Job {job_id} not found")
 
     job = _jobs[job_id]
+    brand_theme = None
+    if job.get("brand_theme"):
+        brand_theme = BrandThemeResponse(**job["brand_theme"])
     return JobStatusResponse(
         job_id=job_id,
         status=job["status"],
@@ -142,6 +171,7 @@ async def get_status(job_id: str) -> JobStatusResponse:
         report_path=job.get("report_path"),
         html_report_path=job.get("html_report_path"),
         competitive_intel_path=job.get("competitive_intel_path"),
+        brand_theme=brand_theme,
         errors=job.get("errors", []),
         tasks_completed=job.get("tasks_completed", 0),
     )
@@ -161,6 +191,7 @@ async def list_jobs() -> list[dict[str, Any]]:
             "report_path": j.get("report_path"),
             "html_report_path": j.get("html_report_path"),
             "competitive_intel_path": j.get("competitive_intel_path"),
+            "brand_theme": j.get("brand_theme"),
         }
         for jid, j in _jobs.items()
     ]
@@ -246,6 +277,24 @@ async def get_competitive_intel(job_id: str) -> FileResponse:
     )
 
 
+@app.get("/api/theme/{job_id}", response_model=BrandThemeResponse)
+async def get_brand_theme(job_id: str) -> BrandThemeResponse:
+    """Get the resolved brand theme for a completed job."""
+    if job_id not in _jobs:
+        raise HTTPException(status_code=404, detail=f"Job {job_id} not found")
+
+    job = _jobs[job_id]
+    theme_data = job.get("brand_theme")
+
+    if theme_data:
+        return BrandThemeResponse(**theme_data)
+
+    # Return Brothers Automate defaults if theme not yet resolved
+    fallback = dict(BROTHERS_AUTOMATE_THEME)
+    fallback["brand_name"] = job.get("brand_name", "")
+    return BrandThemeResponse(**fallback)
+
+
 # ---------------------------------------------------------------------------
 # Background job runner
 # ---------------------------------------------------------------------------
@@ -268,6 +317,17 @@ async def _run_job(job_id: str, query: BrandQuery) -> None:
         _jobs[job_id]["tasks_completed"] = sum(
             1 for t in state.task_results if t.status == TaskStatus.COMPLETED
         )
+
+        # Resolve and store brand theme for frontend
+        if state.brand:
+            compiler = ReportCompilerAgent(config, {})
+            theme = compiler.resolve_theme(state.brand)
+            theme["brand_name"] = state.brand.brand_name
+            _jobs[job_id]["brand_theme"] = theme
+        else:
+            fallback = dict(BROTHERS_AUTOMATE_THEME)
+            fallback["brand_name"] = query.brand_name
+            _jobs[job_id]["brand_theme"] = fallback
 
     except Exception as exc:
         logger.error("Job %s failed: %s", job_id, exc, exc_info=True)

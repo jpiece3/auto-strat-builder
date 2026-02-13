@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { useBrandTheme } from '@/lib/theme-context';
 import {
   ArrowLeft,
   TrendingUp,
@@ -13,8 +14,89 @@ import {
   ChevronUp,
   Loader2,
 } from 'lucide-react';
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+  Cell,
+} from 'recharts';
 
 const API_BASE = import.meta.env.VITE_API_URL || '';
+
+const CHART_COLORS = {
+  primary: '#1a365d',
+  accent: '#ed8936',
+  success: '#16a34a',
+  muted: '#64748b',
+  destructive: '#ef4444',
+  amber: '#f59e0b',
+};
+
+const intensityToNumber = (intensity: string): number => {
+  switch (intensity.toLowerCase()) {
+    case 'very high': return 4;
+    case 'high': return 3;
+    case 'medium-high': return 2.5;
+    case 'medium': return 2;
+    case 'low': return 1;
+    case 'very low': return 0.5;
+    default: return 1;
+  }
+};
+
+const saturationToNumber = (saturation: string): number => {
+  switch (saturation.toLowerCase()) {
+    case 'high': return 3;
+    case 'medium-high': return 2.5;
+    case 'medium': return 2;
+    case 'low': return 1;
+    case 'very low': return 0.5;
+    default: return 1;
+  }
+};
+
+const opportunityToNumber = (size: string): number => {
+  switch (size.toLowerCase()) {
+    case 'high': return 3;
+    case 'medium-high': return 2.5;
+    case 'medium': return 2;
+    case 'low': return 1;
+    default: return 1;
+  }
+};
+
+const CustomTooltip = ({ active, payload, label }: any) => {
+  if (!active || !payload) return null;
+  return (
+    <div className="bg-card border border-border p-3 shadow-md" style={{ borderRadius: '4px' }}>
+      <p className="stat-label-sharp mb-1">{label}</p>
+      {payload.map((entry: any, idx: number) => (
+        <p key={idx} className="text-xs text-muted-foreground">
+          <span style={{ color: entry.color }}>&#9679;</span> {entry.name}: {entry.value}%
+        </p>
+      ))}
+    </div>
+  );
+};
+
+const CustomTooltipSimple = ({ active, payload, label }: any) => {
+  if (!active || !payload) return null;
+  return (
+    <div className="bg-card border border-border p-3 shadow-md" style={{ borderRadius: '4px' }}>
+      <p className="stat-label-sharp mb-1">{label}</p>
+      {payload.map((entry: any, idx: number) => (
+        <p key={idx} className="text-xs text-muted-foreground">
+          <span style={{ color: entry.color }}>&#9679;</span> {entry.name}: {entry.value}
+        </p>
+      ))}
+    </div>
+  );
+};
 
 // Sample data structure - used as fallback
 const sampleData = {
@@ -143,6 +225,7 @@ const sampleData = {
 const CompetitiveIntel: React.FC = () => {
   const { jobId } = useParams<{ jobId: string }>();
   const navigate = useNavigate();
+  const { theme, setTheme } = useBrandTheme();
   const [data, setData] = useState<typeof sampleData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -155,7 +238,7 @@ const CompetitiveIntel: React.FC = () => {
     strengths: false
   });
 
-  // Fetch competitive intelligence data
+  // Fetch competitive intelligence data and brand theme
   useEffect(() => {
     if (!jobId) return;
 
@@ -163,18 +246,28 @@ const CompetitiveIntel: React.FC = () => {
       try {
         setLoading(true);
         setError(null);
-        const res = await fetch(`${API_BASE}/api/reports/${jobId}/competitive-intel`);
 
-        if (!res.ok) {
-          throw new Error(`Failed to fetch competitive intelligence: ${res.statusText}`);
+        // Fetch data and theme in parallel
+        const [dataRes, themeRes] = await Promise.all([
+          fetch(`${API_BASE}/api/reports/${jobId}/competitive-intel`),
+          fetch(`${API_BASE}/api/theme/${jobId}`).catch(() => null),
+        ]);
+
+        if (!dataRes.ok) {
+          throw new Error(`Failed to fetch competitive intelligence: ${dataRes.statusText}`);
         }
 
-        const intelData = await res.json();
+        const intelData = await dataRes.json();
         setData(intelData);
+
+        // Apply brand theme if available
+        if (themeRes?.ok) {
+          const themeData = await themeRes.json();
+          setTheme(themeData);
+        }
       } catch (err) {
         console.error('Error fetching competitive intelligence:', err);
         setError(err instanceof Error ? err.message : 'Failed to load competitive intelligence');
-        // Fallback to sample data if fetch fails
         setData(sampleData);
       } finally {
         setLoading(false);
@@ -182,7 +275,7 @@ const CompetitiveIntel: React.FC = () => {
     };
 
     fetchData();
-  }, [jobId]);
+  }, [jobId, setTheme]);
 
   const toggleSection = (section: string) => {
     setExpandedSections(prev => ({ ...prev, [section]: !prev[section] }));
@@ -195,7 +288,11 @@ const CompetitiveIntel: React.FC = () => {
         <nav className="header-sharp sticky top-0 z-50">
           <div className="container mx-auto px-4 h-16 flex items-center justify-between">
             <div className="flex items-center gap-3 cursor-pointer" onClick={() => navigate('/')}>
+              {theme.logo_url ? (
+              <img src={theme.logo_url} alt={theme.brand_name || 'Brand'} className="h-9" />
+            ) : (
               <img src="/logo.png" alt="Brothers Automate" className="h-9" />
+            )}
               <span className="font-bold text-lg uppercase tracking-wide">
                 Intelligence
               </span>
@@ -206,7 +303,7 @@ const CompetitiveIntel: React.FC = () => {
           </div>
         </nav>
         <div className="container mx-auto px-4 py-20 flex flex-col items-center justify-center">
-          <Loader2 className="w-12 h-12 text-[#ed8936] animate-spin mb-4" />
+          <Loader2 className="w-12 h-12 text-brand-accent animate-spin mb-4" />
           <p className="stat-label-sharp">Loading competitive intelligence...</p>
         </div>
       </div>
@@ -220,7 +317,11 @@ const CompetitiveIntel: React.FC = () => {
         <nav className="header-sharp sticky top-0 z-50">
           <div className="container mx-auto px-4 h-16 flex items-center justify-between">
             <div className="flex items-center gap-3 cursor-pointer" onClick={() => navigate('/')}>
+              {theme.logo_url ? (
+              <img src={theme.logo_url} alt={theme.brand_name || 'Brand'} className="h-9" />
+            ) : (
               <img src="/logo.png" alt="Brothers Automate" className="h-9" />
+            )}
               <span className="font-bold text-lg uppercase tracking-wide">
                 Intelligence
               </span>
@@ -250,7 +351,7 @@ const CompetitiveIntel: React.FC = () => {
   const getSaturationColor = (saturation: string) => {
     switch (saturation.toLowerCase()) {
       case 'high': return 'bg-destructive text-destructive-foreground';
-      case 'medium': case 'medium-high': return 'bg-[#f59e0b] text-white';
+      case 'medium': case 'medium-high': return 'bg-amber-500 text-white';
       case 'low': case 'very low': return 'bg-success text-white';
       default: return 'bg-secondary text-foreground';
     }
@@ -259,7 +360,7 @@ const CompetitiveIntel: React.FC = () => {
   const getOpportunityColor = (size: string) => {
     switch (size.toLowerCase()) {
       case 'high': case 'medium-high': return 'bg-success text-white';
-      case 'medium': return 'bg-[#f59e0b] text-white';
+      case 'medium': return 'bg-amber-500 text-white';
       case 'low': return 'bg-secondary text-foreground';
       default: return 'bg-secondary text-foreground';
     }
@@ -271,7 +372,11 @@ const CompetitiveIntel: React.FC = () => {
       <nav className="header-sharp sticky top-0 z-50">
         <div className="container mx-auto px-4 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3 cursor-pointer" onClick={() => navigate('/')}>
-            <img src="/logo.png" alt="Brothers Automate" className="h-9" />
+            {theme.logo_url ? (
+              <img src={theme.logo_url} alt={theme.brand_name || 'Brand'} className="h-9" />
+            ) : (
+              <img src="/logo.png" alt="Brothers Automate" className="h-9" />
+            )}
             <span className="font-bold text-lg uppercase tracking-wide">
               Intelligence
             </span>
@@ -320,10 +425,77 @@ const CompetitiveIntel: React.FC = () => {
           </div>
         </div>
 
+        {/* Landscape Overview Charts */}
+        <section className="mb-12">
+          <h2 className="text-2xl font-bold text-foreground uppercase tracking-wide mb-6 flex items-center gap-2">
+            <BarChart3 className="w-6 h-6 text-brand-accent" />
+            Landscape Overview
+          </h2>
+          <div className="grid md:grid-cols-2 gap-6">
+            {/* Messaging Cluster Intensity */}
+            <div className="card-sharp bg-card p-6">
+              <div className="stat-label-sharp mb-4">Messaging Cluster Intensity</div>
+              <ResponsiveContainer width="100%" height={Math.max(160, intelData.landscape.messaging_clusters.length * 45)}>
+                <BarChart
+                  layout="vertical"
+                  data={intelData.landscape.messaging_clusters.map((c) => ({
+                    name: c.cluster.length > 25 ? c.cluster.slice(0, 25) + '...' : c.cluster,
+                    Intensity: intensityToNumber(c.intensity),
+                    fullName: c.cluster,
+                  }))}
+                  margin={{ top: 0, right: 20, left: 10, bottom: 0 }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(210, 20%, 90%)" />
+                  <XAxis type="number" domain={[0, 4]} tick={{ fontSize: 11 }} ticks={[1, 2, 3, 4]} />
+                  <YAxis dataKey="name" type="category" tick={{ fontSize: 11 }} width={130} />
+                  <Tooltip content={<CustomTooltipSimple />} />
+                  <Bar dataKey="Intensity" fill={CHART_COLORS.accent} radius={[0, 2, 2, 0]}>
+                    {intelData.landscape.messaging_clusters.map((c, idx) => (
+                      <Cell
+                        key={idx}
+                        fill={intensityToNumber(c.intensity) >= 3 ? CHART_COLORS.accent : intensityToNumber(c.intensity) >= 2 ? CHART_COLORS.amber : CHART_COLORS.muted}
+                      />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+
+            {/* Market Segment Saturation */}
+            <div className="card-sharp bg-card p-6">
+              <div className="stat-label-sharp mb-4">Market Segment Saturation</div>
+              <ResponsiveContainer width="100%" height={Math.max(160, intelData.landscape.market_segments_served.length * 45)}>
+                <BarChart
+                  layout="vertical"
+                  data={intelData.landscape.market_segments_served.map((s) => ({
+                    name: s.segment.length > 25 ? s.segment.slice(0, 25) + '...' : s.segment,
+                    Saturation: saturationToNumber(s.saturation),
+                    fullName: s.segment,
+                  }))}
+                  margin={{ top: 0, right: 20, left: 10, bottom: 0 }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(210, 20%, 90%)" />
+                  <XAxis type="number" domain={[0, 3]} tick={{ fontSize: 11 }} ticks={[1, 2, 3]} />
+                  <YAxis dataKey="name" type="category" tick={{ fontSize: 11 }} width={130} />
+                  <Tooltip content={<CustomTooltipSimple />} />
+                  <Bar dataKey="Saturation" fill={CHART_COLORS.destructive} radius={[0, 2, 2, 0]}>
+                    {intelData.landscape.market_segments_served.map((s, idx) => (
+                      <Cell
+                        key={idx}
+                        fill={saturationToNumber(s.saturation) >= 3 ? CHART_COLORS.destructive : saturationToNumber(s.saturation) >= 2 ? CHART_COLORS.amber : CHART_COLORS.success}
+                      />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        </section>
+
         {/* Competitor Analysis */}
         <section className="mb-12">
           <h2 className="text-2xl font-bold text-foreground uppercase tracking-wide mb-6 flex items-center gap-2">
-            <Users className="w-6 h-6 text-[#ed8936]" />
+            <Users className="w-6 h-6 text-brand-accent" />
             Competitor Profiles
           </h2>
 
@@ -350,7 +522,7 @@ const CompetitiveIntel: React.FC = () => {
             <div className="flex items-start justify-between pb-4 border-b border-border">
               <div>
                 <h3 className="text-xl font-bold text-foreground mb-2">{competitor.name}</h3>
-                <a href={competitor.domain} target="_blank" rel="noopener noreferrer" className="text-[#ed8936] text-sm flex items-center gap-1 hover:underline">
+                <a href={competitor.domain} target="_blank" rel="noopener noreferrer" className="text-brand-accent text-sm flex items-center gap-1 hover:underline">
                   {competitor.domain} <ExternalLink className="w-3 h-3" />
                 </a>
               </div>
@@ -368,7 +540,7 @@ const CompetitiveIntel: React.FC = () => {
             <div>
               <button
                 onClick={() => toggleSection('valueProp')}
-                className="w-full flex items-center justify-between py-2 font-semibold uppercase text-sm tracking-wide text-foreground hover:text-[#ed8936] transition-colors"
+                className="w-full flex items-center justify-between py-2 font-semibold uppercase text-sm tracking-wide text-foreground hover:text-brand-accent transition-colors"
               >
                 <span className="flex items-center gap-2">
                   <Target className="w-4 h-4" />
@@ -391,7 +563,7 @@ const CompetitiveIntel: React.FC = () => {
                     <ul className="space-y-2">
                       {competitor.value_proposition.key_differentiators.map((diff, idx) => (
                         <li key={idx} className="text-muted-foreground flex items-start gap-2">
-                          <span className="text-[#ed8936] mt-1">•</span>
+                          <span className="text-brand-accent mt-1">•</span>
                           {diff}
                         </li>
                       ))}
@@ -402,7 +574,7 @@ const CompetitiveIntel: React.FC = () => {
                     <ul className="space-y-2">
                       {competitor.value_proposition.proof_points.map((proof, idx) => (
                         <li key={idx} className="text-muted-foreground flex items-start gap-2">
-                          <span className="text-[#ed8936] mt-1">✓</span>
+                          <span className="text-brand-accent mt-1">✓</span>
                           {proof}
                         </li>
                       ))}
@@ -416,7 +588,7 @@ const CompetitiveIntel: React.FC = () => {
             <div className="border-t border-border pt-6">
               <button
                 onClick={() => toggleSection('keywords')}
-                className="w-full flex items-center justify-between py-2 font-semibold uppercase text-sm tracking-wide text-foreground hover:text-[#ed8936] transition-colors"
+                className="w-full flex items-center justify-between py-2 font-semibold uppercase text-sm tracking-wide text-foreground hover:text-brand-accent transition-colors"
               >
                 <span className="flex items-center gap-2">
                   <TrendingUp className="w-4 h-4" />
@@ -427,20 +599,33 @@ const CompetitiveIntel: React.FC = () => {
               {expandedSections.keywords && (
                 <div className="mt-4 space-y-4">
                   <p className="text-muted-foreground">{competitor.keyword_strategy.analysis}</p>
-                  <div className="grid grid-cols-3 gap-4">
-                    <div className="bg-background p-3" style={{borderRadius: '4px'}}>
-                      <div className="stat-label-sharp mb-1">Navigational</div>
-                      <div className="text-xl font-bold text-foreground">{competitor.keyword_strategy.intent_distribution.navigational_percent}%</div>
-                    </div>
-                    <div className="bg-background p-3" style={{borderRadius: '4px'}}>
-                      <div className="stat-label-sharp mb-1">Informational</div>
-                      <div className="text-xl font-bold text-foreground">{competitor.keyword_strategy.intent_distribution.informational_percent}%</div>
-                    </div>
-                    <div className="bg-background p-3" style={{borderRadius: '4px'}}>
-                      <div className="stat-label-sharp mb-1">Transactional</div>
-                      <div className="text-xl font-bold text-foreground">{competitor.keyword_strategy.intent_distribution.transactional_percent}%</div>
-                    </div>
+
+                  {/* Intent Distribution Chart - All Competitors */}
+                  <div className="bg-background p-4" style={{borderRadius: '4px'}}>
+                    <div className="stat-label-sharp mb-3">Intent Distribution — All Competitors</div>
+                    <ResponsiveContainer width="100%" height={Math.max(180, intelData.competitors.length * 50)}>
+                      <BarChart
+                        layout="vertical"
+                        data={intelData.competitors.map((c) => ({
+                          name: c.name,
+                          Navigational: c.keyword_strategy.intent_distribution.navigational_percent,
+                          Informational: c.keyword_strategy.intent_distribution.informational_percent,
+                          Transactional: c.keyword_strategy.intent_distribution.transactional_percent,
+                        }))}
+                        margin={{ top: 0, right: 20, left: 10, bottom: 0 }}
+                      >
+                        <CartesianGrid strokeDasharray="3 3" stroke="hsl(210, 20%, 90%)" />
+                        <XAxis type="number" domain={[0, 100]} tick={{ fontSize: 11 }} unit="%" />
+                        <YAxis dataKey="name" type="category" tick={{ fontSize: 11 }} width={100} />
+                        <Tooltip content={<CustomTooltip />} />
+                        <Legend wrapperStyle={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.05em' }} />
+                        <Bar dataKey="Navigational" stackId="a" fill={CHART_COLORS.primary} />
+                        <Bar dataKey="Informational" stackId="a" fill={CHART_COLORS.accent} />
+                        <Bar dataKey="Transactional" stackId="a" fill={CHART_COLORS.success} />
+                      </BarChart>
+                    </ResponsiveContainer>
                   </div>
+
                   <div>
                     <div className="stat-label-sharp mb-2">Top Themes</div>
                     <div className="flex flex-wrap gap-2">
@@ -457,7 +642,7 @@ const CompetitiveIntel: React.FC = () => {
             <div className="border-t border-border pt-6">
               <button
                 onClick={() => toggleSection('ads')}
-                className="w-full flex items-center justify-between py-2 font-semibold uppercase text-sm tracking-wide text-foreground hover:text-[#ed8936] transition-colors"
+                className="w-full flex items-center justify-between py-2 font-semibold uppercase text-sm tracking-wide text-foreground hover:text-brand-accent transition-colors"
               >
                 <span className="flex items-center gap-2">
                   <BarChart3 className="w-4 h-4" />
@@ -467,6 +652,32 @@ const CompetitiveIntel: React.FC = () => {
               </button>
               {expandedSections.ads && (
                 <div className="mt-4 space-y-4">
+                  {/* Ad Platform Allocation Chart - All Competitors */}
+                  <div className="bg-background p-4" style={{borderRadius: '4px'}}>
+                    <div className="stat-label-sharp mb-3">Platform Allocation — All Competitors</div>
+                    <ResponsiveContainer width="100%" height={Math.max(200, intelData.competitors.length * 50)}>
+                      <BarChart
+                        layout="vertical"
+                        data={intelData.competitors.map((c) => ({
+                          name: c.name,
+                          'FB / IG': c.ad_strategy.estimated_platform_allocation.facebook_instagram,
+                          'Google': c.ad_strategy.estimated_platform_allocation.google,
+                          'Other': c.ad_strategy.estimated_platform_allocation.other,
+                        }))}
+                        margin={{ top: 0, right: 20, left: 10, bottom: 0 }}
+                      >
+                        <CartesianGrid strokeDasharray="3 3" stroke="hsl(210, 20%, 90%)" />
+                        <XAxis type="number" domain={[0, 100]} tick={{ fontSize: 11 }} unit="%" />
+                        <YAxis dataKey="name" type="category" tick={{ fontSize: 11 }} width={100} />
+                        <Tooltip content={<CustomTooltip />} />
+                        <Legend wrapperStyle={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.05em' }} />
+                        <Bar dataKey="FB / IG" stackId="a" fill={CHART_COLORS.primary} />
+                        <Bar dataKey="Google" stackId="a" fill={CHART_COLORS.accent} />
+                        <Bar dataKey="Other" stackId="a" fill={CHART_COLORS.muted} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <div className="stat-label-sharp mb-2">Primary Platforms</div>
@@ -494,7 +705,7 @@ const CompetitiveIntel: React.FC = () => {
                     <ul className="space-y-2">
                       {competitor.ad_strategy.core_messaging_angles.map((angle, idx) => (
                         <li key={idx} className="text-muted-foreground flex items-start gap-2 text-sm">
-                          <span className="text-[#ed8936] mt-1">→</span>
+                          <span className="text-brand-accent mt-1">→</span>
                           {angle}
                         </li>
                       ))}
@@ -508,7 +719,7 @@ const CompetitiveIntel: React.FC = () => {
             <div className="border-t border-border pt-6">
               <button
                 onClick={() => toggleSection('strengths')}
-                className="w-full flex items-center justify-between py-2 font-semibold uppercase text-sm tracking-wide text-foreground hover:text-[#ed8936] transition-colors"
+                className="w-full flex items-center justify-between py-2 font-semibold uppercase text-sm tracking-wide text-foreground hover:text-brand-accent transition-colors"
               >
                 <span>Competitive Assessment</span>
                 {expandedSections.strengths ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
@@ -546,7 +757,7 @@ const CompetitiveIntel: React.FC = () => {
         {/* Market Landscape */}
         <section className="mb-12">
           <h2 className="text-2xl font-bold text-foreground uppercase tracking-wide mb-6 flex items-center gap-2">
-            <BarChart3 className="w-6 h-6 text-[#ed8936]" />
+            <BarChart3 className="w-6 h-6 text-brand-accent" />
             Market Landscape
           </h2>
 
@@ -584,7 +795,7 @@ const CompetitiveIntel: React.FC = () => {
                   <div className="flex items-start justify-between mb-3">
                     <div className="flex-1">
                       <div className="font-semibold text-foreground mb-1 flex items-center gap-2">
-                        <DollarSign className="w-4 h-4 text-[#ed8936]" />
+                        <DollarSign className="w-4 h-4 text-brand-accent" />
                         {pricing.tier}
                       </div>
                       <p className="text-sm text-muted-foreground mb-2">{pricing.examples}</p>
@@ -633,9 +844,38 @@ const CompetitiveIntel: React.FC = () => {
         {/* White Space Opportunities */}
         <section>
           <h2 className="text-2xl font-bold text-foreground uppercase tracking-wide mb-6 flex items-center gap-2">
-            <Lightbulb className="w-6 h-6 text-[#ed8936]" />
+            <Lightbulb className="w-6 h-6 text-brand-accent" />
             White Space Opportunities
           </h2>
+
+          {/* Opportunity vs Saturation Chart */}
+          {intelData.white_space.underserved_segments.length > 0 && (
+            <div className="card-sharp bg-card p-6 mb-8">
+              <div className="stat-label-sharp mb-4">Opportunity vs Saturation</div>
+              <ResponsiveContainer width="100%" height={Math.max(200, intelData.white_space.underserved_segments.length * 50)}>
+                <BarChart
+                  layout="vertical"
+                  data={intelData.white_space.underserved_segments.map((s) => ({
+                    name: s.segment.length > 30 ? s.segment.slice(0, 30) + '...' : s.segment,
+                    Opportunity: opportunityToNumber(s.opportunity_size),
+                    Saturation: saturationToNumber(s.saturation),
+                  }))}
+                  margin={{ top: 0, right: 20, left: 10, bottom: 0 }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(210, 20%, 90%)" />
+                  <XAxis type="number" domain={[0, 3]} tick={{ fontSize: 11 }} ticks={[1, 2, 3]} />
+                  <YAxis dataKey="name" type="category" tick={{ fontSize: 11 }} width={160} />
+                  <Tooltip content={<CustomTooltipSimple />} />
+                  <Legend wrapperStyle={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.05em' }} />
+                  <Bar dataKey="Opportunity" fill={CHART_COLORS.success} radius={[0, 2, 2, 0]} />
+                  <Bar dataKey="Saturation" fill={CHART_COLORS.destructive} radius={[0, 2, 2, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+              <p className="text-xs text-muted-foreground mt-3 text-center">
+                Green = higher opportunity, Red = higher saturation. Best targets have high opportunity + low saturation.
+              </p>
+            </div>
+          )}
 
           {/* Underserved Segments */}
           <div className="mb-8">
@@ -667,9 +907,9 @@ const CompetitiveIntel: React.FC = () => {
           </div>
 
           {/* Strategic Positioning Recommendation */}
-          <div className="card-sharp bg-[#ed8936] bg-opacity-5 border-[#ed8936] p-6">
+          <div className="card-sharp bg-brand-accent/5 border-brand-accent p-6">
             <h3 className="text-xl font-bold text-foreground mb-4 uppercase tracking-wide flex items-center gap-2">
-              <Target className="w-5 h-5 text-[#ed8936]" />
+              <Target className="w-5 h-5 text-brand-accent" />
               Strategic Positioning Recommendation
             </h3>
 
@@ -684,7 +924,7 @@ const CompetitiveIntel: React.FC = () => {
                 <ul className="space-y-2">
                   {intelData.white_space.positioning_recommendation.key_differentiators_to_emphasize.map((diff, idx) => (
                     <li key={idx} className="flex items-start gap-2 text-sm text-muted-foreground">
-                      <span className="text-[#ed8936] font-bold mt-0.5">{idx + 1}.</span>
+                      <span className="text-brand-accent font-bold mt-0.5">{idx + 1}.</span>
                       {diff}
                     </li>
                   ))}

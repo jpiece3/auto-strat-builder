@@ -15,6 +15,7 @@ import {
   ExternalLink,
   type LucideIcon,
 } from 'lucide-react';
+import { useBrandTheme } from '@/lib/theme-context';
 
 const API_BASE = import.meta.env.VITE_API_URL || '';
 
@@ -25,6 +26,8 @@ interface JobStatus {
   completed_at: string | null;
   report_path: string | null;
   html_report_path: string | null;
+  competitive_intel_path: string | null;
+  brand_theme: Record<string, string> | null;
   errors: string[];
   tasks_completed: number;
   tasks_total: number;
@@ -73,9 +76,11 @@ const AGENT_STEPS: AgentStep[] = [
 const Analysis: React.FC = () => {
   const { jobId } = useParams<{ jobId: string }>();
   const navigate = useNavigate();
+  const { theme, setTheme } = useBrandTheme();
   const [status, setStatus] = useState<JobStatus | null>(null);
   const [elapsed, setElapsed] = useState(0);
   const [expandedStep, setExpandedStep] = useState<number | null>(null);
+  const [themeFetched, setThemeFetched] = useState(false);
 
   // Poll for job status
   useEffect(() => {
@@ -100,6 +105,24 @@ const Analysis: React.FC = () => {
       clearInterval(interval);
     };
   }, [jobId]);
+
+  // Fetch and apply brand theme when job completes
+  useEffect(() => {
+    if (!jobId || themeFetched) return;
+    if (status?.brand_theme) {
+      setTheme(status.brand_theme as any);
+      setThemeFetched(true);
+    } else if (status?.status === 'completed' || status?.status === 'failed') {
+      // Fallback: fetch theme from dedicated endpoint
+      fetch(`${API_BASE}/api/theme/${jobId}`)
+        .then((res) => res.ok ? res.json() : null)
+        .then((themeData) => {
+          if (themeData) setTheme(themeData);
+          setThemeFetched(true);
+        })
+        .catch(() => setThemeFetched(true));
+    }
+  }, [jobId, status?.status, status?.brand_theme, themeFetched, setTheme]);
 
   // Elapsed timer
   useEffect(() => {
@@ -126,9 +149,13 @@ const Analysis: React.FC = () => {
       <nav className="header-sharp sticky top-0 z-50">
         <div className="container mx-auto px-4 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3 cursor-pointer" onClick={() => navigate('/')}>
-            <img src="/logo.png" alt="Brothers Automate" className="h-9" />
+            {theme.logo_url ? (
+              <img src={theme.logo_url} alt={theme.brand_name || 'Brand'} className="h-9" />
+            ) : (
+              <img src="/logo.png" alt="Brothers Automate" className="h-9" />
+            )}
             <span className="font-bold text-lg uppercase tracking-wide">
-              Intelligence
+              {theme.brand_name ? `${theme.brand_name} Intel` : 'Intelligence'}
             </span>
           </div>
           <button onClick={() => navigate('/')} className="btn-sharp-secondary text-xs py-2 px-4">
@@ -142,7 +169,7 @@ const Analysis: React.FC = () => {
         <div className="text-center mb-10 animate-fade-in">
           <div
             className={`w-16 h-16 flex items-center justify-center mx-auto mb-4 ${
-              isComplete ? 'bg-success' : isFailed ? 'bg-destructive' : 'bg-[#1a365d]'
+              isComplete ? 'bg-success' : isFailed ? 'bg-destructive' : 'bg-primary'
             }`}
             style={{borderRadius: '4px'}}
           >
@@ -218,7 +245,7 @@ const Analysis: React.FC = () => {
                       isDone
                         ? 'bg-success'
                         : isCurrent
-                          ? 'bg-[#1a365d]'
+                          ? 'bg-primary'
                           : 'bg-secondary'
                     }`}
                     style={{borderRadius: '4px'}}
@@ -283,9 +310,9 @@ const Analysis: React.FC = () => {
             {/* Download options */}
             <div className="space-y-3 mb-6">
               {status?.competitive_intel_path && (
-                <div className="flex items-center justify-between p-4 bg-background border border-[#ed8936]" style={{borderRadius: '4px'}}>
+                <div className="flex items-center justify-between p-4 bg-background border border-brand-accent" style={{borderRadius: '4px'}}>
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-[#ed8936] flex items-center justify-center" style={{borderRadius: '4px'}}>
+                    <div className="w-10 h-10 bg-brand-accent flex items-center justify-center" style={{borderRadius: '4px'}}>
                       <BarChart3 className="w-5 h-5 text-white" />
                     </div>
                     <div>
@@ -308,7 +335,7 @@ const Analysis: React.FC = () => {
               {status?.html_report_path && (
                 <div className="flex items-center justify-between p-4 bg-background border border-border" style={{borderRadius: '4px'}}>
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-[#1a365d] flex items-center justify-center" style={{borderRadius: '4px'}}>
+                    <div className="w-10 h-10 bg-primary flex items-center justify-center" style={{borderRadius: '4px'}}>
                       <FileText className="w-5 h-5 text-white" />
                     </div>
                     <div>

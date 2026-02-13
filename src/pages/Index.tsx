@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useBrandTheme } from '@/lib/theme-context';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -33,7 +34,13 @@ const PIPELINE_STEPS = [
 
 const Index = () => {
   const navigate = useNavigate();
+  const { resetTheme } = useBrandTheme();
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Reset theme to defaults on home page
+  useEffect(() => {
+    resetTheme();
+  }, [resetTheme]);
   const [form, setForm] = useState({
     brand_name: '',
     website_url: '',
@@ -121,7 +128,7 @@ const Index = () => {
             </div>
             <h1 className="text-4xl md:text-6xl font-bold mb-4 leading-tight text-foreground">
               KNOW YOUR MARKET.{' '}
-              <span className="text-[#ed8936]">OWN YOUR POSITION.</span>
+              <span className="text-brand-accent">OWN YOUR POSITION.</span>
             </h1>
             <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
               AI agents crawl, research, and analyze your brand and competitors—delivering
@@ -136,11 +143,11 @@ const Index = () => {
               return (
                 <React.Fragment key={step.label}>
                   <div className="flex items-center gap-2 bg-card border border-border px-4 py-2 text-sm" style={{borderRadius: '2px'}}>
-                    <Icon className="w-4 h-4 text-[#ed8936]" />
+                    <Icon className="w-4 h-4 text-brand-accent" />
                     <span className="font-semibold uppercase text-xs tracking-wide">{step.label}</span>
                   </div>
                   {i < PIPELINE_STEPS.length - 1 && (
-                    <ArrowRight className="w-5 h-5 text-[#ed8936] self-center hidden md:block" />
+                    <ArrowRight className="w-5 h-5 text-brand-accent self-center hidden md:block" />
                   )}
                 </React.Fragment>
               );
@@ -293,7 +300,7 @@ const Index = () => {
               const Icon = feat.icon;
               return (
                 <div key={feat.title} className="card-sharp bg-card p-6">
-                  <div className="w-12 h-12 bg-[#1a365d] flex items-center justify-center mb-4" style={{borderRadius: '4px'}}>
+                  <div className="w-12 h-12 bg-primary flex items-center justify-center mb-4" style={{borderRadius: '4px'}}>
                     <Icon className="w-6 h-6 text-white" />
                   </div>
                   <h3 className="font-bold mb-2 text-foreground uppercase text-sm tracking-wide">

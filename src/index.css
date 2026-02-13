@@ -23,10 +23,10 @@
     --primary: 210 55% 24%;     /* Navy #1a365d */
     --primary-foreground: 255 255 255;
 
-    /* CTA: Orange */
-    --cta: 22 81% 58%;          /* Orange #ed8936 */
-    --cta-foreground: 255 255 255;
-    --cta-hover: 22 81% 50%;
+    /* CTA: Light Cream */
+    --cta: 38 35% 85%;           /* Light cream #E8DCC8 */
+    --cta-foreground: 210 55% 24%;  /* Navy text for contrast */
+    --cta-hover: 38 35% 78%;     /* Slightly darker cream */
 
     /* Secondary */
     --secondary: 210 55% 95%;   /* Light navy tint */
@@ -36,9 +36,9 @@
     --muted: 215 16% 47%;       /* Slate gray */
     --muted-foreground: 215 16% 35%;
 
-    /* Accent - Orange for highlights */
-    --accent: 22 81% 58%;
-    --accent-foreground: 255 255 255;
+    /* Accent - Light Cream for highlights */
+    --accent: 38 35% 85%;
+    --accent-foreground: 210 55% 24%;
 
     /* Success */
     --success: 142 71% 37%;
@@ -50,9 +50,15 @@
 
     /* Borders - Sharp UI uses defined borders */
     --border: 210 20% 85%;      /* Light gray borders */
-    --border-accent: 22 81% 58%; /* Orange accent borders */
+    --border-accent: 38 35% 85%; /* Cream accent borders */
     --input: 210 20% 90%;
-    --ring: 22 81% 58%;         /* Orange focus ring */
+    --ring: 38 35% 85%;         /* Cream focus ring */
+
+    /* Brand Accent - bright highlight for icons/links (Orange #ed8936) */
+    --brand-accent: 27 84% 57%;
+
+    /* Primary hover */
+    --primary-hover: 210 50% 32%;
 
     /* Sharp UI - Minimal border radius */
     --radius: 0.25rem;          /* 4px max for Sharp UI */
@@ -136,8 +142,8 @@
 
   /* Sharp UI Buttons */
   .btn-sharp-primary {
-    background: hsl(var(--cta));
-    color: hsl(var(--cta-foreground));
+    background: hsl(var(--primary));
+    color: hsl(var(--primary-foreground));
     border: none;
     border-radius: 2px;
     padding: 14px 28px;
@@ -149,7 +155,7 @@
   }
 
   .btn-sharp-primary:hover {
-    background: hsl(var(--cta-hover));
+    background: hsl(var(--primary-hover));
     transform: translateY(-1px);
   }
 
@@ -278,7 +284,7 @@
 
   .badge-sharp-accent {
     background: hsl(var(--cta));
-    color: hsl(var(--cta-foreground));
+    color: hsl(var(--foreground));
     border: none;
   }
 
