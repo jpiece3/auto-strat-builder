@@ -41,6 +41,7 @@ class BrandQuery:
 
     brand_name: str
     website_url: str
+    email: str = ""
     industry: str = ""
     known_competitors: list[str] = field(default_factory=list)
     target_keywords: list[str] = field(default_factory=list)

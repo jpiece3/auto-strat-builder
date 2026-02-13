@@ -44,6 +44,7 @@ const Index = () => {
   const [form, setForm] = useState({
     brand_name: '',
     website_url: '',
+    email: '',
     industry: '',
     competitors: '',
     keywords: '',
@@ -52,7 +53,7 @@ const Index = () => {
     depth: 'comprehensive',
   });
 
-  const canSubmit = form.brand_name.trim() && form.website_url.trim();
+  const canSubmit = form.brand_name.trim() && form.website_url.trim() && form.email.trim();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -62,6 +63,7 @@ const Index = () => {
     const payload = {
       brand_name: form.brand_name.trim(),
       website_url: form.website_url.trim(),
+      email: form.email.trim(),
       industry: form.industry.trim(),
       known_competitors: form.competitors
         ? form.competitors.split(',').map((c) => c.trim()).filter(Boolean)
@@ -188,6 +190,23 @@ const Index = () => {
                     className="input-sharp w-full"
                   />
                 </div>
+              </div>
+
+              <div>
+                <label htmlFor="email" className="label-sharp block mb-2">
+                  Email Address <span className="text-destructive">*</span>
+                </label>
+                <input
+                  id="email"
+                  value={form.email}
+                  onChange={set('email')}
+                  placeholder="you@company.com"
+                  type="email"
+                  className="input-sharp w-full"
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  We'll send your report links here when the analysis is complete.
+                </p>
               </div>
 
               <div>

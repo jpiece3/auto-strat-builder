@@ -173,6 +173,7 @@ CRITICAL MARKDOWN FORMATTING RULES:
             exec_summary=exec_summary,
             recommendations=recommendations,
             positioning=positioning,
+            intel_data=intel_data,
         )
         html_path.write_text(html_content, encoding="utf-8")
         self.logger.info("HTML report written to: %s", html_path)
@@ -681,6 +682,7 @@ Return ONLY valid JSON with these two objects. No markdown, no code blocks.
         exec_summary: str,
         recommendations: str,
         positioning: str,
+        intel_data: dict[str, Any] | None = None,
     ) -> str:
         """Generate a professionally styled HTML report themed to the analyzed brand."""
         brand = state.brand
@@ -714,6 +716,9 @@ Return ONLY valid JSON with these two objects. No markdown, no code blocks.
         seo_profile_html = self._format_seo_profile_html(brand)
         content_analysis_html = self._format_content_analysis_html(brand)
         competitors_html = self._format_competitors_html(brand)
+        competitive_intel_html = self._format_competitive_intel_html(intel_data)
+        landscape_html = self._format_landscape_html(intel_data)
+        whitespace_html = self._format_whitespace_html(intel_data)
         social_presence_html = self._format_social_presence_html(brand)
         swot_html = self._format_swot_html(brand)
         market_trends_html = self._format_market_trends_html(brand)
@@ -993,6 +998,95 @@ Return ONLY valid JSON with these two objects. No markdown, no code blocks.
             margin: 3rem 0;
         }}
 
+        /* Deep Competitive Intel styles */
+        .intent-bar {{
+            display: flex;
+            height: 24px;
+            border-radius: 4px;
+            overflow: hidden;
+            margin: 0.5rem 0;
+        }}
+
+        .intent-bar span {{
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.7rem;
+            font-weight: 600;
+            color: white;
+            min-width: 30px;
+        }}
+
+        .dimension-grid {{
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 0.75rem;
+            margin: 1rem 0;
+        }}
+
+        .dimension-item {{
+            background: #f8f7f4;
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            padding: 0.75rem;
+        }}
+
+        .dimension-label {{
+            font-size: 0.7rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--text-muted);
+            margin-bottom: 0.25rem;
+        }}
+
+        .dimension-value {{
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: var(--navy);
+            text-transform: capitalize;
+        }}
+
+        .highlight-card {{
+            background: linear-gradient(145deg, var(--white) 0%, rgba(237, 137, 54, 0.05) 100%);
+            border: 2px solid var(--orange);
+            border-radius: 6px;
+            padding: 2rem;
+            margin: 1.5rem 0;
+        }}
+
+        .highlight-card h4 {{
+            color: var(--orange);
+            margin-top: 0;
+        }}
+
+        .badge-low {{
+            background: var(--success);
+            color: var(--white);
+        }}
+
+        .badge-medium {{
+            background: var(--orange);
+            color: var(--white);
+        }}
+
+        .badge-high {{
+            background: #ef4444;
+            color: var(--white);
+        }}
+
+        .badge-very-high {{
+            background: #991b1b;
+            color: var(--white);
+        }}
+
+        .messaging-angles {{
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            margin: 0.5rem 0;
+        }}
+
         footer {{
             background: #f8f7f4;
             padding: 2rem 3rem;
@@ -1097,6 +1191,21 @@ Return ONLY valid JSON with these two objects. No markdown, no code blocks.
 
             <h2>Competitors</h2>
             {competitors_html}
+
+            <div class="divider"></div>
+
+            <h2>Deep Competitive Intelligence</h2>
+            {competitive_intel_html}
+
+            <div class="divider"></div>
+
+            <h2>Market Landscape</h2>
+            {landscape_html}
+
+            <div class="divider"></div>
+
+            <h2>White Space Opportunities</h2>
+            {whitespace_html}
 
             <div class="divider"></div>
 
@@ -1396,6 +1505,322 @@ Return ONLY valid JSON with these two objects. No markdown, no code blocks.
             """)
 
         return "\n".join(comp_cards)
+
+    @staticmethod
+    def _saturation_badge(level: str) -> str:
+        """Return a badge HTML string for a saturation/intensity level."""
+        lv = level.lower().replace("-", " ").strip()
+        if lv in ("very high",):
+            cls = "badge-very-high"
+        elif lv in ("high",):
+            cls = "badge-high"
+        elif lv in ("medium", "medium-high"):
+            cls = "badge-medium"
+        else:
+            cls = "badge-low"
+        return f'<span class="badge {cls}">{level}</span>'
+
+    def _format_competitive_intel_html(self, intel_data: dict[str, Any] | None) -> str:
+        """Format deep competitive intelligence section as HTML."""
+        if not intel_data:
+            return "<p>No deep competitive intelligence data available.</p>"
+
+        competitors = intel_data.get("competitors", [])
+        if not competitors:
+            return "<p>No competitor intelligence data available.</p>"
+
+        cards: list[str] = []
+        for comp in competitors:
+            name = comp.get("name", "Unknown")
+            domain = comp.get("domain", "")
+
+            # Value proposition
+            vp = comp.get("value_proposition", {})
+            vp_html = ""
+            if vp:
+                differentiators_html = "".join(
+                    f"<li>{d}</li>" for d in vp.get("key_differentiators", [])
+                )
+                proof_points_html = "".join(
+                    f"<li>{p}</li>" for p in vp.get("proof_points", [])
+                )
+                vp_html = f"""
+                <div style="margin-top: 1rem;">
+                    <h4>Value Proposition</h4>
+                    <p><strong>Primary Claim:</strong> {vp.get('primary_claim', 'N/A')}</p>
+                    <p><strong>Headline:</strong> {vp.get('headline', 'N/A')}</p>
+                    <p><strong>Target Audience:</strong> {vp.get('target_audience', 'N/A')}</p>
+                    {f'<h4>Key Differentiators</h4><ul>{differentiators_html}</ul>' if differentiators_html else ''}
+                    {f'<h4>Proof Points</h4><ul>{proof_points_html}</ul>' if proof_points_html else ''}
+                </div>
+                """
+
+            # Positioning dimensions
+            dims = comp.get("positioning_dimensions", {})
+            dims_html = ""
+            if dims:
+                dim_items = ""
+                for key, label in [
+                    ("price_tier", "Price Tier"),
+                    ("target_segment", "Target Segment"),
+                    ("messaging_style", "Messaging Style"),
+                    ("brand_personality", "Brand Personality"),
+                    ("funnel_focus", "Funnel Focus"),
+                    ("geographic_focus", "Geographic Focus"),
+                ]:
+                    val = dims.get(key, "N/A")
+                    if isinstance(val, str):
+                        val = val.replace("_", " ").title()
+                    dim_items += f"""
+                    <div class="dimension-item">
+                        <div class="dimension-label">{label}</div>
+                        <div class="dimension-value">{val}</div>
+                    </div>
+                    """
+                dims_html = f"""
+                <div style="margin-top: 1rem;">
+                    <h4>Positioning Dimensions</h4>
+                    <div class="dimension-grid">{dim_items}</div>
+                </div>
+                """
+
+            # Keyword strategy
+            kw = comp.get("keyword_strategy", {})
+            kw_html = ""
+            if kw:
+                intent = kw.get("intent_distribution", {})
+                nav_pct = intent.get("navigational_percent", 0)
+                info_pct = intent.get("informational_percent", 0)
+                trans_pct = intent.get("transactional_percent", 0)
+                themes = intent.get("top_themes", [])
+                themes_html = "".join(
+                    f'<span class="badge badge-secondary" style="margin: 2px;">{t}</span>'
+                    for t in themes
+                )
+                kw_html = f"""
+                <div style="margin-top: 1rem;">
+                    <h4>Keyword Strategy</h4>
+                    <p>{kw.get('analysis', '')}</p>
+                    <p style="font-size: 0.8rem; font-weight: 600; margin-bottom: 0.25rem;">Intent Distribution</p>
+                    <div class="intent-bar">
+                        <span style="width: {nav_pct}%; background: var(--navy);" title="Navigational {nav_pct}%">{nav_pct}%</span>
+                        <span style="width: {info_pct}%; background: var(--orange);" title="Informational {info_pct}%">{info_pct}%</span>
+                        <span style="width: {trans_pct}%; background: var(--success);" title="Transactional {trans_pct}%">{trans_pct}%</span>
+                    </div>
+                    <p style="font-size: 0.7rem; color: var(--text-muted); margin-top: 0.25rem;">
+                        <span style="color: var(--navy);">&#9632;</span> Navigational
+                        &nbsp;&nbsp;<span style="color: var(--orange);">&#9632;</span> Informational
+                        &nbsp;&nbsp;<span style="color: var(--success);">&#9632;</span> Transactional
+                    </p>
+                    {f'<div style="margin-top: 0.5rem;"><strong>Top Themes:</strong><div style="margin-top: 0.25rem;">{themes_html}</div></div>' if themes_html else ''}
+                </div>
+                """
+
+            # Ad strategy
+            ad = comp.get("ad_strategy", {})
+            ad_html = ""
+            if ad:
+                platforms_html = ", ".join(ad.get("primary_platforms", []))
+                angles = ad.get("core_messaging_angles", [])
+                angles_html = "".join(
+                    f'<span class="badge badge-primary" style="margin: 2px;">{a}</span>'
+                    for a in angles
+                )
+                ad_html = f"""
+                <div style="margin-top: 1rem;">
+                    <h4>Ad Strategy</h4>
+                    <div class="card-grid" style="grid-template-columns: repeat(2, 1fr);">
+                        <div>
+                            <p><strong>Platforms:</strong> {platforms_html}</p>
+                            <p><strong>Creative Velocity:</strong> {ad.get('creative_velocity', 'N/A')}</p>
+                            <p><strong>Dominant Format:</strong> {ad.get('dominant_format', 'N/A')}</p>
+                        </div>
+                        <div>
+                            <p><strong>Visual Style:</strong> {ad.get('visual_style', 'N/A')}</p>
+                            <p><strong>Brand Personality:</strong> {ad.get('brand_personality', 'N/A')}</p>
+                        </div>
+                    </div>
+                    {f'<div style="margin-top: 0.5rem;"><strong>Messaging Angles:</strong><div class="messaging-angles">{angles_html}</div></div>' if angles_html else ''}
+                </div>
+                """
+
+            # Strengths/Weaknesses
+            strengths = comp.get("competitive_strengths", [])
+            weaknesses = comp.get("competitive_weaknesses", [])
+            sw_html = ""
+            if strengths or weaknesses:
+                sw_html = f"""
+                <div style="margin-top: 1rem; display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                    <div>
+                        <h4 style="color: var(--success);">Strengths</h4>
+                        <ul>{''.join(f'<li>{s}</li>' for s in strengths)}</ul>
+                    </div>
+                    <div>
+                        <h4 style="color: var(--orange);">Weaknesses</h4>
+                        <ul>{''.join(f'<li>{w}</li>' for w in weaknesses)}</ul>
+                    </div>
+                </div>
+                """
+
+            cards.append(f"""
+            <div class="card">
+                <h3>{name} {f'<span style="font-size: 0.8rem; color: var(--text-muted);">({domain})</span>' if domain else ''}</h3>
+                {vp_html}
+                {dims_html}
+                {kw_html}
+                {ad_html}
+                {sw_html}
+            </div>
+            """)
+
+        return "\n".join(cards)
+
+    def _format_landscape_html(self, intel_data: dict[str, Any] | None) -> str:
+        """Format market landscape section as HTML."""
+        if not intel_data:
+            return "<p>No market landscape data available.</p>"
+
+        landscape = intel_data.get("landscape", {})
+        if not landscape:
+            return "<p>No market landscape data available.</p>"
+
+        parts: list[str] = []
+
+        # Market segments served
+        segments = landscape.get("market_segments_served", [])
+        if segments:
+            rows = ""
+            for seg in segments:
+                comps = seg.get("competitors_targeting", [])
+                comps_str = ", ".join(comps) if isinstance(comps, list) else str(comps)
+                rows += f"""<tr>
+                    <td><strong>{seg.get('segment', 'N/A')}</strong></td>
+                    <td>{comps_str}</td>
+                    <td>{self._saturation_badge(seg.get('saturation', 'Medium'))}</td>
+                    <td>{seg.get('key_players', 'N/A')}</td>
+                </tr>"""
+            parts.append(f"""
+            <div class="card">
+                <h4>Market Segments Served</h4>
+                <table>
+                    <thead>
+                        <tr><th>Segment</th><th>Competitors Targeting</th><th>Saturation</th><th>Key Players</th></tr>
+                    </thead>
+                    <tbody>{rows}</tbody>
+                </table>
+            </div>
+            """)
+
+        # Pricing distribution
+        pricing = landscape.get("pricing_distribution", [])
+        if pricing:
+            rows = ""
+            for tier in pricing:
+                comps = tier.get("competitors", [])
+                comps_str = ", ".join(comps) if isinstance(comps, list) else str(comps)
+                rows += f"""<tr>
+                    <td><strong>{tier.get('tier', 'N/A')}</strong></td>
+                    <td>{tier.get('examples', 'N/A')}</td>
+                    <td>{comps_str}</td>
+                    <td>{tier.get('positioning', 'N/A')}</td>
+                </tr>"""
+            parts.append(f"""
+            <div class="card">
+                <h4>Pricing Distribution</h4>
+                <table>
+                    <thead>
+                        <tr><th>Tier</th><th>Examples</th><th>Competitors</th><th>Positioning</th></tr>
+                    </thead>
+                    <tbody>{rows}</tbody>
+                </table>
+            </div>
+            """)
+
+        # Messaging clusters
+        clusters = landscape.get("messaging_clusters", [])
+        if clusters:
+            rows = ""
+            for cl in clusters:
+                comps = cl.get("competitors_using", [])
+                comps_str = ", ".join(comps) if isinstance(comps, list) else str(comps)
+                rows += f"""<tr>
+                    <td><strong>{cl.get('cluster', 'N/A')}</strong></td>
+                    <td>{cl.get('core_message', 'N/A')}</td>
+                    <td>{comps_str}</td>
+                    <td>{self._saturation_badge(cl.get('intensity', 'Medium'))}</td>
+                    <td>{cl.get('effectiveness_signal', 'N/A')}</td>
+                </tr>"""
+            parts.append(f"""
+            <div class="card">
+                <h4>Messaging Clusters</h4>
+                <table>
+                    <thead>
+                        <tr><th>Cluster</th><th>Core Message</th><th>Competitors</th><th>Intensity</th><th>Effectiveness Signal</th></tr>
+                    </thead>
+                    <tbody>{rows}</tbody>
+                </table>
+            </div>
+            """)
+
+        return "\n".join(parts) if parts else "<p>No market landscape data available.</p>"
+
+    def _format_whitespace_html(self, intel_data: dict[str, Any] | None) -> str:
+        """Format white space opportunities section as HTML."""
+        if not intel_data:
+            return "<p>No white space analysis data available.</p>"
+
+        ws = intel_data.get("white_space", {})
+        if not ws:
+            return "<p>No white space analysis data available.</p>"
+
+        parts: list[str] = []
+
+        # Underserved segments
+        segments = ws.get("underserved_segments", [])
+        if segments:
+            seg_cards = ""
+            for seg in segments:
+                seg_cards += f"""
+                <div class="card">
+                    <h4>{seg.get('segment', 'N/A')}</h4>
+                    <p>{seg.get('evidence', '')}</p>
+                    <div style="display: flex; gap: 0.75rem; margin: 0.75rem 0;">
+                        <div>
+                            <span class="stat-label" style="font-size: 0.7rem;">Saturation</span>
+                            {self._saturation_badge(seg.get('saturation', 'Medium'))}
+                        </div>
+                        <div>
+                            <span class="stat-label" style="font-size: 0.7rem;">Opportunity</span>
+                            {self._saturation_badge(seg.get('opportunity_size', 'Medium'))}
+                        </div>
+                    </div>
+                    <p><strong>Why Underserved:</strong> {seg.get('why_underserved', 'N/A')}</p>
+                </div>
+                """
+            parts.append(f"""
+            <h3>Underserved Segments</h3>
+            <div class="card-grid">{seg_cards}</div>
+            """)
+
+        # Positioning recommendation
+        rec = ws.get("positioning_recommendation", {})
+        if rec and rec.get("recommended_position"):
+            diffs = rec.get("key_differentiators_to_emphasize", [])
+            diffs_html = "".join(f"<li>{d}</li>" for d in diffs)
+            parts.append(f"""
+            <div class="highlight-card">
+                <h4>Recommended Positioning</h4>
+                <p style="font-size: 1.1rem; font-weight: 600; color: var(--navy); margin-bottom: 1rem;">
+                    {rec.get('recommended_position', '')}
+                </p>
+                {f'<h4>Key Differentiators to Emphasize</h4><ul>{diffs_html}</ul>' if diffs_html else ''}
+                <p><strong>Messaging Angle:</strong> {rec.get('messaging_angle_to_adopt', 'N/A')}</p>
+                <p><strong>Target Segment:</strong> {rec.get('target_segment_to_prioritize', 'N/A')}</p>
+                <p><strong>Rationale:</strong> {rec.get('rationale', 'N/A')}</p>
+            </div>
+            """)
+
+        return "\n".join(parts) if parts else "<p>No white space analysis data available.</p>"
 
     def _format_social_presence_html(self, brand) -> str:
         """Format social presence section as HTML."""

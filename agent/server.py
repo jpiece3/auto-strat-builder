@@ -19,11 +19,15 @@ from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
+import resend
+
 from agent.agents.report_compiler import BROTHERS_AUTOMATE_THEME, ReportCompilerAgent
 from agent.config import AgentConfig
 from agent.models import BrandQuery, TaskStatus
 from agent.utils.logging import get_logger
 from agent.workflows.brand_intelligence import BrandIntelligenceWorkflow
+
+resend.api_key = os.getenv("RESEND_API_KEY", "re_bhQT26Mo_5THLuumckeida4QP6S5gNasv")
 
 logger = get_logger("server")
 
@@ -55,6 +59,7 @@ _jobs: dict[str, dict[str, Any]] = {}
 class BrandQueryRequest(BaseModel):
     brand_name: str = Field(..., description="The brand name to analyze")
     website_url: str = Field(..., description="The brand's primary website URL")
+    email: str = Field("", description="Email address to receive report links")
     industry: str = Field("", description="Industry or vertical")
     known_competitors: list[str] = Field(default_factory=list, description="Known competitor domains")
     target_keywords: list[str] = Field(default_factory=list, description="Target SEO keywords")
@@ -121,6 +126,7 @@ async def start_analysis(request: BrandQueryRequest) -> JobResponse:
     query = BrandQuery(
         brand_name=request.brand_name,
         website_url=request.website_url,
+        email=request.email,
         industry=request.industry,
         known_competitors=request.known_competitors,
         target_keywords=request.target_keywords,
@@ -141,6 +147,7 @@ async def start_analysis(request: BrandQueryRequest) -> JobResponse:
         "query": query,
         "brand_name": request.brand_name,
         "website_url": request.website_url,
+        "email": request.email,
     }
 
     asyncio.create_task(_run_job(job_id, query))
@@ -299,6 +306,71 @@ async def get_brand_theme(job_id: str) -> BrandThemeResponse:
 # Background job runner
 # ---------------------------------------------------------------------------
 
+def _send_report_email(job_id: str, email: str, brand_name: str, theme: dict[str, str] | None = None) -> None:
+    """Send report links to the user via Resend."""
+    base_url = os.getenv("PUBLIC_URL", "http://localhost:8080")
+    dashboard_url = f"{base_url}/analysis/{job_id}"
+    html_report_url = f"{base_url}/api/reports/{job_id}/html"
+    competitive_intel_url = f"{base_url}/competitive-intel/{job_id}"
+
+    # Use brand theme colors if available, otherwise defaults
+    t = theme or {}
+    primary = t.get("primary", "#1a365d")
+    accent = t.get("accent", "#ed8936")
+    bg = t.get("background", "#fdfcfa")
+    logo_url = t.get("logo_url", "")
+
+    logo_html = f'<img src="{logo_url}" alt="{brand_name}" style="max-width:160px;height:auto;margin-bottom:16px;">' if logo_url else ""
+
+    email_html = f"""<!DOCTYPE html>
+<html>
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
+<body style="margin:0;padding:0;background:{bg};font-family:'Plus Jakarta Sans',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
+  <div style="max-width:600px;margin:0 auto;padding:32px 24px;">
+    <div style="background:{primary};padding:32px;border-bottom:4px solid {accent};text-align:center;">
+      {logo_html}
+      <h1 style="color:white;margin:0;font-size:24px;font-weight:700;">Your Intelligence Report is Ready</h1>
+      <p style="color:rgba(255,255,255,0.8);margin:8px 0 0;font-size:14px;">{brand_name}</p>
+    </div>
+    <div style="background:white;padding:32px;border:1px solid #e8e6e1;">
+      <p style="color:#64748b;font-size:15px;line-height:1.6;margin:0 0 24px;">
+        Your comprehensive brand intelligence analysis for <strong style="color:{primary};">{brand_name}</strong> has been completed.
+        Here are your report links:
+      </p>
+
+      <a href="{dashboard_url}" style="display:block;background:{primary};color:white;text-decoration:none;padding:16px 24px;font-weight:600;font-size:14px;text-transform:uppercase;letter-spacing:0.5px;text-align:center;margin-bottom:12px;" target="_blank">
+        View Analysis Dashboard
+      </a>
+
+      <a href="{competitive_intel_url}" style="display:block;background:{accent};color:white;text-decoration:none;padding:16px 24px;font-weight:600;font-size:14px;text-transform:uppercase;letter-spacing:0.5px;text-align:center;margin-bottom:12px;" target="_blank">
+        View Competitive Intelligence
+      </a>
+
+      <a href="{html_report_url}" style="display:block;background:white;color:{primary};text-decoration:none;padding:16px 24px;font-weight:600;font-size:14px;text-transform:uppercase;letter-spacing:0.5px;text-align:center;border:2px solid {primary};" target="_blank">
+        View Full HTML Report
+      </a>
+
+      <p style="color:#94a3b8;font-size:13px;line-height:1.6;margin:24px 0 0;text-align:center;">
+        These links will remain accessible as long as the server is running.
+      </p>
+    </div>
+    <div style="text-align:center;padding:24px;color:#94a3b8;font-size:12px;">
+      <p style="margin:0;">Brothers Automate Intelligence Agent</p>
+      <p style="margin:4px 0 0;">Simple AI. Smart Results.</p>
+    </div>
+  </div>
+</body>
+</html>"""
+
+    resend.Emails.send({
+        "from": "Brothers Automate <intel@brothersautomate.com>",
+        "to": [email],
+        "subject": f"Your Brand Intelligence Report: {brand_name}",
+        "html": email_html,
+    })
+    logger.info("Report email sent to %s for job %s", email, job_id)
+
+
 async def _run_job(job_id: str, query: BrandQuery) -> None:
     """Execute the workflow and update job state."""
     try:
@@ -328,6 +400,18 @@ async def _run_job(job_id: str, query: BrandQuery) -> None:
             fallback = dict(BROTHERS_AUTOMATE_THEME)
             fallback["brand_name"] = query.brand_name
             _jobs[job_id]["brand_theme"] = fallback
+
+        # Send report email if email was provided
+        if query.email:
+            try:
+                _send_report_email(
+                    job_id=job_id,
+                    email=query.email,
+                    brand_name=query.brand_name,
+                    theme=_jobs[job_id].get("brand_theme"),
+                )
+            except Exception as email_exc:
+                logger.warning("Failed to send report email for job %s: %s", job_id, email_exc)
 
     except Exception as exc:
         logger.error("Job %s failed: %s", job_id, exc, exc_info=True)
