@@ -132,7 +132,7 @@ const Analysis: React.FC = () => {
             </span>
           </div>
           <button onClick={() => navigate('/')} className="btn-sharp-secondary text-xs py-2 px-4">
-            <ArrowLeft className="w-4 h-4 mr-1" /> New Analysis
+            <ArrowLeft className="w-4 h-4 mr-1" /> Dashboard
           </button>
         </div>
       </nav>
