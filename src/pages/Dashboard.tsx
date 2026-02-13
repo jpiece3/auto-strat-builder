@@ -1,8 +1,5 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { toast } from '@/hooks/use-toast';
 import {
   AlertDialog,
@@ -113,64 +110,64 @@ const Dashboard: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Nav */}
-      <nav className="border-b bg-background/80 backdrop-blur-sm sticky top-0 z-50">
+      {/* Nav - Sharp UI Header */}
+      <nav className="header-sharp sticky top-0 z-50">
         <div className="container mx-auto px-4 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3 cursor-pointer" onClick={() => navigate('/')}>
-            <img src="/logo.png" alt="Brothers Automate" className="h-10" />
-            <span className="font-bold text-lg text-foreground">
+            <img src="/logo.png" alt="Brothers Automate" className="h-9" />
+            <span className="font-bold text-lg uppercase tracking-wide">
               Intelligence
             </span>
           </div>
-          <Button size="sm" onClick={() => navigate('/')} className="gradient-cta hover:opacity-90">
+          <button onClick={() => navigate('/')} className="btn-sharp-primary py-2 px-4 text-xs">
             <Plus className="w-4 h-4 mr-1" /> New Analysis
-          </Button>
+          </button>
         </div>
       </nav>
 
       <div className="container mx-auto px-4 py-10 max-w-3xl">
         <div className="flex items-center justify-between mb-8">
           <div>
-            <h1 className="text-2xl font-bold text-foreground">
+            <h1 className="text-2xl font-bold text-foreground uppercase tracking-wide">
               Past Analyses
             </h1>
-            <p className="text-sm text-muted-foreground">All brand intelligence runs</p>
+            <p className="stat-label-sharp">All brand intelligence runs</p>
           </div>
-          <Button variant="ghost" size="sm" onClick={fetchJobs}>
+          <button onClick={fetchJobs} className="btn-sharp-secondary py-2 px-4 text-xs">
             <RefreshCw className="w-4 h-4 mr-1" /> Refresh
-          </Button>
+          </button>
         </div>
 
         {!serverUp && (
-          <Card className="p-6 mb-6 border-destructive/30 bg-destructive/5 text-center">
+          <div className="card-sharp p-6 mb-6 border-destructive bg-destructive/5 text-center">
             <AlertTriangle className="w-8 h-8 text-destructive mx-auto mb-2" />
-            <p className="font-semibold mb-1">Agent server is not reachable</p>
-            <p className="text-sm text-muted-foreground mb-3">
-              Start the backend with: <code className="bg-muted px-2 py-0.5 rounded text-xs">uvicorn agent.server:app --port 8000</code>
+            <p className="font-bold uppercase tracking-wide mb-1">Agent server is not reachable</p>
+            <p className="stat-label-sharp mb-3">
+              Start the backend with: <code className="bg-secondary px-2 py-0.5 text-xs" style={{borderRadius: '2px'}}>uvicorn agent.server:app --port 8000</code>
             </p>
-          </Card>
+          </div>
         )}
 
         {loading && (
           <div className="text-center py-20">
-            <Loader2 className="w-8 h-8 text-primary animate-spin mx-auto mb-3" />
-            <p className="text-muted-foreground">Loading jobs...</p>
+            <Loader2 className="w-8 h-8 text-[#1a365d] animate-spin mx-auto mb-3" />
+            <p className="stat-label-sharp">Loading jobs...</p>
           </div>
         )}
 
         {!loading && jobs.length === 0 && serverUp && (
-          <Card className="p-12 text-center gradient-card shadow-soft">
+          <div className="card-sharp p-12 text-center bg-card">
             <Clock className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-            <h2 className="text-lg font-semibold mb-2 text-foreground">
+            <h2 className="text-lg font-bold mb-2 text-foreground uppercase tracking-wide">
               No analyses yet
             </h2>
-            <p className="text-muted-foreground mb-6">
+            <p className="stat-label-sharp mb-6">
               Run your first brand intelligence analysis to see results here.
             </p>
-            <Button onClick={() => navigate('/')} className="gradient-cta hover:opacity-90">
+            <button onClick={() => navigate('/')} className="btn-sharp-primary py-3 px-6">
               <Plus className="w-4 h-4 mr-1" /> Start Analysis
-            </Button>
-          </Card>
+            </button>
+          </div>
         )}
 
         {!loading && jobs.length > 0 && (
@@ -180,9 +177,9 @@ const Dashboard: React.FC = () => {
               .map((job) => {
                 const cfg = STATUS_CONFIG[job.status] ?? STATUS_CONFIG.running;
                 return (
-                  <Card
+                  <div
                     key={job.job_id}
-                    className="p-4 transition-spring"
+                    className="card-sharp p-4 bg-card transition-all duration-200"
                   >
                     <div className="flex items-start gap-4">
                       <div
@@ -190,12 +187,12 @@ const Dashboard: React.FC = () => {
                         onClick={() => navigate(`/analysis/${job.job_id}`)}
                       >
                         <div className="flex items-center gap-2 mb-1">
-                          <span className="font-semibold text-sm">
+                          <span className="font-bold text-sm uppercase tracking-wide">
                             {job.brand_name || job.job_id}
                           </span>
-                          <Badge variant={cfg.variant} className="text-xs flex items-center gap-1">
+                          <span className={`badge-sharp text-xs flex items-center gap-1 ${job.status === 'completed' ? 'badge-sharp-accent' : ''}`}>
                             {cfg.icon} {cfg.label}
-                          </Badge>
+                          </span>
                         </div>
                         <p className="text-xs text-muted-foreground">
                           {job.website_url && <span className="mr-3">{job.website_url}</span>}
@@ -203,44 +200,43 @@ const Dashboard: React.FC = () => {
                         </p>
                       </div>
                       <div className="flex items-center gap-2 flex-shrink-0">
-                        <Button
-                          variant="ghost"
-                          size="sm"
+                        <button
                           onClick={() => navigate(`/analysis/${job.job_id}`)}
                           title="View analysis"
+                          className="p-2 hover:bg-secondary transition-colors"
+                          style={{borderRadius: '2px'}}
                         >
                           <ExternalLink className="w-4 h-4" />
-                        </Button>
+                        </button>
                         {job.status === 'completed' && job.html_report_path && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
+                          <button
                             onClick={() => handleViewReport(job.job_id)}
                             title="View HTML report"
+                            className="p-2 hover:bg-secondary transition-colors"
+                            style={{borderRadius: '2px'}}
                           >
                             <FileText className="w-4 h-4" />
-                          </Button>
+                          </button>
                         )}
-                        <Button
-                          variant="ghost"
-                          size="sm"
+                        <button
                           onClick={() => handleCopyUrl(job.job_id)}
                           title="Copy URL"
+                          className="p-2 hover:bg-secondary transition-colors"
+                          style={{borderRadius: '2px'}}
                         >
                           <Copy className="w-4 h-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
+                        </button>
+                        <button
                           onClick={() => setDeleteJobId(job.job_id)}
-                          className="text-destructive hover:text-destructive"
+                          className="p-2 text-destructive hover:bg-destructive/10 transition-colors"
+                          style={{borderRadius: '2px'}}
                           title="Delete analysis"
                         >
                           <Trash2 className="w-4 h-4" />
-                        </Button>
+                        </button>
                       </div>
                     </div>
-                  </Card>
+                  </div>
                 );
               })}
           </div>

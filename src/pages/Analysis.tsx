@@ -1,8 +1,5 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
-import { Progress } from '@/components/ui/progress';
 import {
   Check,
   Loader2,
@@ -125,18 +122,18 @@ const Analysis: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Nav */}
-      <nav className="border-b bg-background/80 backdrop-blur-sm sticky top-0 z-50">
+      {/* Nav - Sharp UI Header */}
+      <nav className="header-sharp sticky top-0 z-50">
         <div className="container mx-auto px-4 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3 cursor-pointer" onClick={() => navigate('/')}>
-            <img src="/logo.png" alt="Brothers Automate" className="h-10" />
-            <span className="font-bold text-lg text-foreground">
+            <img src="/logo.png" alt="Brothers Automate" className="h-9" />
+            <span className="font-bold text-lg uppercase tracking-wide">
               Intelligence
             </span>
           </div>
-          <Button variant="ghost" size="sm" onClick={() => navigate('/')}>
+          <button onClick={() => navigate('/')} className="btn-sharp-secondary text-xs py-2 px-4">
             <ArrowLeft className="w-4 h-4 mr-1" /> New Analysis
-          </Button>
+          </button>
         </div>
       </nav>
 
@@ -144,9 +141,10 @@ const Analysis: React.FC = () => {
         {/* Header */}
         <div className="text-center mb-10 animate-fade-in">
           <div
-            className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 ${
-              isComplete ? 'bg-success' : isFailed ? 'bg-destructive' : 'bg-primary'
+            className={`w-16 h-16 flex items-center justify-center mx-auto mb-4 ${
+              isComplete ? 'bg-success' : isFailed ? 'bg-destructive' : 'bg-[#1a365d]'
             }`}
+            style={{borderRadius: '4px'}}
           >
             {isRunning ? (
               <Loader2 className="w-8 h-8 text-white animate-spin" />
@@ -159,7 +157,7 @@ const Analysis: React.FC = () => {
             )}
           </div>
 
-          <h1 className="text-3xl font-bold mb-2 text-foreground">
+          <h1 className="text-3xl font-bold mb-2 text-foreground uppercase tracking-wide">
             {isRunning
               ? 'Agents Working...'
               : isComplete
@@ -170,30 +168,35 @@ const Analysis: React.FC = () => {
           </h1>
 
           {isRunning && (
-            <div className="flex items-center justify-center gap-4 text-muted-foreground">
-              <span className="flex items-center gap-1">
+            <div className="flex items-center justify-center gap-4">
+              <span className="stat-label-sharp flex items-center gap-1">
                 <Clock className="w-4 h-4" /> {formatTime(elapsed)}
               </span>
-              <span>
+              <span className="stat-label-sharp">
                 {tasksCompleted} / {AGENT_STEPS.length} agents complete
               </span>
             </div>
           )}
 
           {isComplete && status?.completed_at && (
-            <p className="text-muted-foreground">
+            <p className="stat-label-sharp mt-2">
               Completed at {new Date(status.completed_at).toLocaleTimeString()}
             </p>
           )}
         </div>
 
-        {/* Progress bar */}
+        {/* Progress bar - Sharp UI */}
         <div className="mb-8">
-          <Progress value={isComplete ? 100 : progressPct} className="h-3" />
-          <p className="text-xs text-muted-foreground mt-1 text-right">{isComplete ? 100 : progressPct}%</p>
+          <div className="progress-sharp">
+            <div
+              className="progress-sharp-fill h-full transition-all duration-300"
+              style={{width: `${isComplete ? 100 : progressPct}%`}}
+            />
+          </div>
+          <p className="stat-label-sharp mt-2 text-right">{isComplete ? 100 : progressPct}%</p>
         </div>
 
-        {/* Agent steps */}
+        {/* Agent steps - Sharp UI Cards */}
         <div className="space-y-3 mb-10">
           {AGENT_STEPS.map((step, idx) => {
             const StepIcon = step.icon;
@@ -202,26 +205,23 @@ const Analysis: React.FC = () => {
             const isExpanded = expandedStep === idx;
 
             return (
-              <Card
+              <div
                 key={step.label}
-                className={`overflow-hidden transition-smooth cursor-pointer ${
-                  isDone
-                    ? 'border-success/30 bg-success/5'
-                    : isCurrent
-                      ? 'border-primary/40 bg-primary/5 shadow-medium'
-                      : 'border-border bg-background'
+                className={`agent-card overflow-hidden transition-all duration-200 cursor-pointer ${
+                  isDone ? 'complete' : isCurrent ? 'active' : ''
                 }`}
                 onClick={() => setExpandedStep(isExpanded ? null : idx)}
               >
                 <div className="flex items-center gap-4 p-4">
                   <div
-                    className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 transition-smooth ${
+                    className={`w-10 h-10 flex items-center justify-center flex-shrink-0 transition-all ${
                       isDone
                         ? 'bg-success'
                         : isCurrent
-                          ? 'bg-primary'
-                          : 'bg-muted'
+                          ? 'bg-[#1a365d]'
+                          : 'bg-secondary'
                     }`}
+                    style={{borderRadius: '4px'}}
                   >
                     {isDone ? (
                       <Check className="w-5 h-5 text-white" />
@@ -233,30 +233,30 @@ const Analysis: React.FC = () => {
                   </div>
 
                   <div className="flex-1 min-w-0">
-                    <div className="font-semibold text-sm">{step.label}</div>
+                    <div className="font-bold text-sm uppercase tracking-wide">{step.label}</div>
                     <div className="text-xs text-muted-foreground truncate">{step.description}</div>
                   </div>
 
-                  {isDone && <span className="text-xs font-medium text-success flex-shrink-0">Done</span>}
+                  {isDone && <span className="badge-sharp-accent text-xs">Done</span>}
                   {isCurrent && (
-                    <span className="text-xs font-medium text-primary flex-shrink-0 animate-pulse">Running</span>
+                    <span className="badge-sharp-accent text-xs animate-pulse">Running</span>
                   )}
                 </div>
 
                 {isExpanded && (
-                  <div className="px-4 pb-4 pt-0 text-sm text-muted-foreground border-t mx-4 mt-0 pt-3">
+                  <div className="px-4 pb-4 pt-0 text-sm text-muted-foreground border-t border-border mx-4 mt-0 pt-3">
                     {step.detail}
                   </div>
                 )}
-              </Card>
+              </div>
             );
           })}
         </div>
 
-        {/* Errors */}
+        {/* Errors - Sharp UI */}
         {status?.errors && status.errors.length > 0 && (
-          <Card className="p-4 mb-8 border-destructive/30 bg-destructive/5">
-            <h3 className="font-semibold text-sm mb-2 flex items-center gap-2 text-destructive">
+          <div className="card-sharp p-4 mb-8 border-destructive bg-destructive/5">
+            <h3 className="label-sharp mb-2 flex items-center gap-2 text-destructive">
               <AlertTriangle className="w-4 h-4" /> Errors
             </h3>
             <ul className="text-xs text-muted-foreground space-y-1">
@@ -264,18 +264,18 @@ const Analysis: React.FC = () => {
                 <li key={i} className="truncate">- {err}</li>
               ))}
             </ul>
-          </Card>
+          </div>
         )}
 
-        {/* Completion card */}
+        {/* Completion card - Sharp UI */}
         {isComplete && (
-          <Card className="p-6 border-success/30 bg-success/5 animate-scale-in">
+          <div className="card-sharp p-6 border-success bg-success/5 animate-scale-in">
             <div className="text-center mb-6">
               <Check className="w-10 h-10 text-success mx-auto mb-3" />
-              <h2 className="text-lg font-bold mb-1 text-foreground">
+              <h2 className="text-lg font-bold mb-1 text-foreground uppercase tracking-wide">
                 Intelligence Report Generated
               </h2>
-              <p className="text-sm text-muted-foreground">
+              <p className="stat-label-sharp">
                 Your comprehensive brand analysis is ready
               </p>
             </div>
@@ -283,64 +283,62 @@ const Analysis: React.FC = () => {
             {/* Download options */}
             <div className="space-y-3 mb-6">
               {status?.html_report_path && (
-                <div className="flex items-center justify-between p-4 bg-background rounded-lg border border-border">
+                <div className="flex items-center justify-between p-4 bg-background border border-border" style={{borderRadius: '4px'}}>
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                      <FileText className="w-5 h-5 text-primary" />
+                    <div className="w-10 h-10 bg-[#1a365d] flex items-center justify-center" style={{borderRadius: '4px'}}>
+                      <FileText className="w-5 h-5 text-white" />
                     </div>
                     <div>
-                      <div className="font-semibold text-sm">HTML Report</div>
+                      <div className="font-bold text-sm uppercase tracking-wide">HTML Report</div>
                       <div className="text-xs text-muted-foreground">Professional branded report</div>
                     </div>
                   </div>
-                  <Button
-                    size="sm"
-                    className="gradient-cta hover:opacity-90"
+                  <button
+                    className="btn-sharp-primary py-2 px-4 text-xs"
                     onClick={() => {
                       window.open(`${API_BASE}/api/reports/${jobId}/html`, '_blank');
                     }}
                   >
                     <ExternalLink className="w-4 h-4 mr-1" />
                     View Report
-                  </Button>
+                  </button>
                 </div>
               )}
 
               {status?.report_path && (
-                <div className="flex items-center justify-between p-4 bg-background rounded-lg border border-border">
+                <div className="flex items-center justify-between p-4 bg-background border border-border" style={{borderRadius: '4px'}}>
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-lg bg-accent/10 flex items-center justify-center">
-                      <FileText className="w-5 h-5 text-accent" />
+                    <div className="w-10 h-10 bg-secondary flex items-center justify-center" style={{borderRadius: '4px'}}>
+                      <FileText className="w-5 h-5 text-foreground" />
                     </div>
                     <div>
-                      <div className="font-semibold text-sm">Markdown Report</div>
+                      <div className="font-bold text-sm uppercase tracking-wide">Markdown Report</div>
                       <div className="text-xs text-muted-foreground">Plain text format</div>
                     </div>
                   </div>
-                  <Button
-                    size="sm"
-                    variant="outline"
+                  <button
+                    className="btn-sharp-secondary py-2 px-4 text-xs"
                     onClick={() => {
                       window.open(`${API_BASE}/api/reports/${jobId}/markdown`, '_blank');
                     }}
                   >
                     <ExternalLink className="w-4 h-4 mr-1" />
                     View Report
-                  </Button>
+                  </button>
                 </div>
               )}
             </div>
 
             <div className="flex gap-3 justify-center">
-              <Button onClick={() => navigate('/')} variant="outline" size="sm">
+              <button onClick={() => navigate('/')} className="btn-sharp-secondary py-2 px-4 text-xs">
                 New Analysis
-              </Button>
-              <Button onClick={() => navigate('/dashboard')} size="sm" className="gradient-cta hover:opacity-90">
+              </button>
+              <button onClick={() => navigate('/dashboard')} className="btn-sharp-primary py-2 px-4 text-xs">
                 <ExternalLink className="w-4 h-4 mr-1" />
                 View All Reports
-              </Button>
+              </button>
             </div>
-          </Card>
+          </div>
         )}
       </div>
     </div>
