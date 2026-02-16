@@ -8,6 +8,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+import markdown as md_lib
+
 from agent.agents.base import BaseAgent
 from agent.models import BrandProfile, WorkflowState
 from agent.utils.logging import log_agent_step
@@ -877,6 +879,59 @@ Return ONLY valid JSON with these two objects. No markdown, no code blocks.
             line-height: 1.7;
         }}
 
+        table {{
+            width: 100%;
+            border-collapse: collapse;
+            margin: 1.5rem 0;
+            font-size: 0.875rem;
+        }}
+
+        th {{
+            background: var(--navy);
+            color: var(--header-text);
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            font-size: 0.75rem;
+            padding: 0.75rem 1rem;
+            text-align: left;
+        }}
+
+        td {{
+            padding: 0.75rem 1rem;
+            border-bottom: 1px solid var(--border);
+            color: var(--text-secondary);
+        }}
+
+        tr:nth-child(even) {{
+            background: var(--slate);
+        }}
+
+        code {{
+            background: var(--slate);
+            padding: 0.15rem 0.4rem;
+            border-radius: 3px;
+            font-size: 0.85em;
+            color: var(--navy);
+        }}
+
+        pre {{
+            background: var(--navy);
+            color: var(--header-text);
+            padding: 1.5rem;
+            border-radius: 6px;
+            overflow-x: auto;
+            margin: 1.5rem 0;
+            font-size: 0.85rem;
+            line-height: 1.5;
+        }}
+
+        pre code {{
+            background: none;
+            padding: 0;
+            color: inherit;
+        }}
+
         .card {{
             background: var(--white);
             border: 1px solid var(--border);
@@ -1270,45 +1325,13 @@ Return ONLY valid JSON with these two objects. No markdown, no code blocks.
         return ""
 
     def _markdown_to_html(self, text: str) -> str:
-        """Convert markdown-style text to HTML paragraphs."""
+        """Convert markdown text to HTML using the markdown library."""
         if not text:
             return ""
-
-        # Split by double newlines to get paragraphs
-        paragraphs = text.strip().split("\n\n")
-        html_parts = []
-
-        for para in paragraphs:
-            para = para.strip()
-            if not para:
-                continue
-
-            # Check if it's a heading
-            if para.startswith("###"):
-                heading_text = para[3:].strip()
-                html_parts.append(f"<h4>{heading_text}</h4>")
-            elif para.startswith("##"):
-                heading_text = para[2:].strip()
-                html_parts.append(f"<h3>{heading_text}</h3>")
-            # Check if it's a list
-            elif para.startswith("- ") or para.startswith("* ") or para.startswith("1."):
-                items = [line.strip() for line in para.split("\n") if line.strip()]
-                is_ordered = items[0][0].isdigit()
-                list_tag = "ol" if is_ordered else "ul"
-                li_items = []
-                for item in items:
-                    # Remove list markers
-                    if item.startswith("- ") or item.startswith("* "):
-                        item = item[2:]
-                    elif item[0].isdigit() and item[1] in [".", ")"]:
-                        item = item[item.index(" ") + 1:]
-                    li_items.append(f"<li>{item}</li>")
-                html_parts.append(f"<{list_tag}>{''.join(li_items)}</{list_tag}>")
-            else:
-                # Regular paragraph
-                html_parts.append(f"<p>{para}</p>")
-
-        return "\n".join(html_parts)
+        return md_lib.markdown(
+            text,
+            extensions=["tables", "fenced_code", "nl2br"],
+        )
 
     def _format_brand_overview_html(self, brand) -> str:
         """Format brand overview section as HTML."""
