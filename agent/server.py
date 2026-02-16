@@ -308,7 +308,7 @@ async def get_brand_theme(job_id: str) -> BrandThemeResponse:
 
 def _send_report_email(job_id: str, email: str, brand_name: str, theme: dict[str, str] | None = None) -> None:
     """Send report links to the user via Resend."""
-    base_url = os.getenv("PUBLIC_URL", "http://localhost:8080")
+    base_url = os.getenv("PUBLIC_URL", "https://brandintel.up.railway.app")
     dashboard_url = f"{base_url}/analysis/{job_id}"
     html_report_url = f"{base_url}/api/reports/{job_id}/html"
     competitive_intel_url = f"{base_url}/competitive-intel/{job_id}"
