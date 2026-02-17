@@ -9,11 +9,13 @@ from __future__ import annotations
 import asyncio
 import os
 import uuid
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
-from fastapi import FastAPI, HTTPException, Request
+import bcrypt
+import jwt
+from fastapi import Cookie, Depends, FastAPI, HTTPException, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
@@ -30,6 +32,45 @@ from agent.workflows.brand_intelligence import BrandIntelligenceWorkflow
 resend.api_key = os.getenv("RESEND_API_KEY", "")
 
 logger = get_logger("server")
+
+# ---------------------------------------------------------------------------
+# Auth setup
+# ---------------------------------------------------------------------------
+
+_ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "")
+_JWT_SECRET = os.getenv("JWT_SECRET", "change-this-to-a-random-secret")
+_JWT_ALGORITHM = "HS256"
+_JWT_EXPIRY_HOURS = 24
+
+_ADMIN_HASH: bytes | None = None
+if _ADMIN_PASSWORD:
+    _ADMIN_HASH = bcrypt.hashpw(_ADMIN_PASSWORD.encode(), bcrypt.gensalt())
+
+
+def _create_token() -> str:
+    payload = {
+        "sub": "admin",
+        "exp": datetime.now(timezone.utc) + timedelta(hours=_JWT_EXPIRY_HOURS),
+        "iat": datetime.now(timezone.utc),
+    }
+    return jwt.encode(payload, _JWT_SECRET, algorithm=_JWT_ALGORITHM)
+
+
+def _verify_token(token: str) -> bool:
+    try:
+        jwt.decode(token, _JWT_SECRET, algorithms=[_JWT_ALGORITHM])
+        return True
+    except (jwt.ExpiredSignatureError, jwt.InvalidTokenError):
+        return False
+
+
+async def require_admin(session: str | None = Cookie(None, alias="session")) -> None:
+    """Reject unauthenticated requests. No-op if ADMIN_PASSWORD is not set."""
+    if not _ADMIN_HASH:
+        return
+    if not session or not _verify_token(session):
+        raise HTTPException(status_code=401, detail="Authentication required")
+
 
 # ---------------------------------------------------------------------------
 # App setup
@@ -118,10 +159,55 @@ async def health() -> dict[str, str]:
     return {"status": "ok", "service": "brand-intelligence-agent"}
 
 
+# ---------------------------------------------------------------------------
+# Auth endpoints (public)
+# ---------------------------------------------------------------------------
+
+class LoginRequest(BaseModel):
+    password: str
+
+
+@app.post("/api/auth/login")
+async def auth_login(body: LoginRequest, response: Response) -> dict[str, Any]:
+    if not _ADMIN_HASH:
+        raise HTTPException(status_code=503, detail="Admin password not configured")
+    if not bcrypt.checkpw(body.password.encode(), _ADMIN_HASH):
+        raise HTTPException(status_code=401, detail="Invalid password")
+    token = _create_token()
+    response.set_cookie(
+        key="session",
+        value=token,
+        httponly=True,
+        secure=True,
+        samesite="lax",
+        max_age=_JWT_EXPIRY_HOURS * 3600,
+        path="/",
+    )
+    return {"authenticated": True}
+
+
+@app.get("/api/auth/check")
+async def auth_check(session: str | None = Cookie(None, alias="session")) -> dict[str, bool]:
+    if not _ADMIN_HASH:
+        return {"authenticated": True}
+    authenticated = bool(session and _verify_token(session))
+    return {"authenticated": authenticated}
+
+
+@app.post("/api/auth/logout")
+async def auth_logout(response: Response) -> dict[str, bool]:
+    response.delete_cookie(key="session", path="/")
+    return {"authenticated": False}
+
+
+# ---------------------------------------------------------------------------
+# Public endpoints
+# ---------------------------------------------------------------------------
+
 @app.post("/api/analyze", response_model=JobResponse)
 async def start_analysis(request: BrandQueryRequest) -> JobResponse:
     """Start a new brand intelligence analysis (runs in background)."""
-    job_id = str(uuid.uuid4())[:8]
+    job_id = str(uuid.uuid4())
 
     query = BrandQuery(
         brand_name=request.brand_name,
@@ -161,7 +247,7 @@ async def start_analysis(request: BrandQueryRequest) -> JobResponse:
 
 
 @app.get("/api/status/{job_id}", response_model=JobStatusResponse)
-async def get_status(job_id: str) -> JobStatusResponse:
+async def get_status(job_id: str, _admin: None = Depends(require_admin)) -> JobStatusResponse:
     """Check the status of a running analysis job."""
     if job_id not in _jobs:
         raise HTTPException(status_code=404, detail=f"Job {job_id} not found")
@@ -185,7 +271,7 @@ async def get_status(job_id: str) -> JobStatusResponse:
 
 
 @app.get("/api/jobs")
-async def list_jobs() -> list[dict[str, Any]]:
+async def list_jobs(_admin: None = Depends(require_admin)) -> list[dict[str, Any]]:
     """List all jobs with summary info."""
     return [
         {
@@ -205,7 +291,7 @@ async def list_jobs() -> list[dict[str, Any]]:
 
 
 @app.delete("/api/jobs/{job_id}")
-async def delete_job(job_id: str) -> dict[str, str]:
+async def delete_job(job_id: str, _admin: None = Depends(require_admin)) -> dict[str, str]:
     """Delete a job from the dashboard."""
     if job_id not in _jobs:
         raise HTTPException(status_code=404, detail=f"Job {job_id} not found")
@@ -216,7 +302,7 @@ async def delete_job(job_id: str) -> dict[str, str]:
 
 
 @app.get("/api/reports/{job_id}/html")
-async def get_html_report(job_id: str) -> FileResponse:
+async def get_html_report(job_id: str, _admin: None = Depends(require_admin)) -> FileResponse:
     """Serve the HTML report for a completed job."""
     if job_id not in _jobs:
         raise HTTPException(status_code=404, detail=f"Job {job_id} not found")
@@ -239,7 +325,7 @@ async def get_html_report(job_id: str) -> FileResponse:
 
 
 @app.get("/api/reports/{job_id}/markdown")
-async def get_markdown_report(job_id: str) -> FileResponse:
+async def get_markdown_report(job_id: str, _admin: None = Depends(require_admin)) -> FileResponse:
     """Serve the Markdown report for a completed job."""
     if job_id not in _jobs:
         raise HTTPException(status_code=404, detail=f"Job {job_id} not found")
@@ -262,7 +348,7 @@ async def get_markdown_report(job_id: str) -> FileResponse:
 
 
 @app.get("/api/reports/{job_id}/competitive-intel")
-async def get_competitive_intel(job_id: str) -> FileResponse:
+async def get_competitive_intel(job_id: str, _admin: None = Depends(require_admin)) -> FileResponse:
     """Serve the competitive intelligence JSON for a completed job."""
     if job_id not in _jobs:
         raise HTTPException(status_code=404, detail=f"Job {job_id} not found")
@@ -285,7 +371,7 @@ async def get_competitive_intel(job_id: str) -> FileResponse:
 
 
 @app.get("/api/theme/{job_id}", response_model=BrandThemeResponse)
-async def get_brand_theme(job_id: str) -> BrandThemeResponse:
+async def get_brand_theme(job_id: str, _admin: None = Depends(require_admin)) -> BrandThemeResponse:
     """Get the resolved brand theme for a completed job."""
     if job_id not in _jobs:
         raise HTTPException(status_code=404, detail=f"Job {job_id} not found")
@@ -307,13 +393,7 @@ async def get_brand_theme(job_id: str) -> BrandThemeResponse:
 # ---------------------------------------------------------------------------
 
 def _send_report_email(job_id: str, email: str, brand_name: str, theme: dict[str, str] | None = None) -> None:
-    """Send report links to the user via Resend."""
-    base_url = os.getenv("PUBLIC_URL", "https://brandintel.up.railway.app")
-    dashboard_url = f"{base_url}/analysis/{job_id}"
-    html_report_url = f"{base_url}/api/reports/{job_id}/html"
-    competitive_intel_url = f"{base_url}/competitive-intel/{job_id}"
-
-    # Use brand theme colors if available, otherwise defaults
+    """Send a confirmation email (no direct report links — admin reviews and delivers)."""
     t = theme or {}
     primary = t.get("primary", "#1a365d")
     accent = t.get("accent", "#ed8936")
@@ -334,24 +414,25 @@ def _send_report_email(job_id: str, email: str, brand_name: str, theme: dict[str
     </div>
     <div style="background:white;padding:32px;border:1px solid #e8e6e1;">
       <p style="color:#64748b;font-size:15px;line-height:1.6;margin:0 0 24px;">
-        Your comprehensive brand intelligence analysis for <strong style="color:{primary};">{brand_name}</strong> has been completed.
-        Here are your report links:
+        Great news! Your comprehensive brand intelligence analysis for
+        <strong style="color:{primary};">{brand_name}</strong> has been completed successfully.
       </p>
-
-      <a href="{dashboard_url}" style="display:block;background:{primary};color:white;text-decoration:none;padding:16px 24px;font-weight:600;font-size:14px;text-transform:uppercase;letter-spacing:0.5px;text-align:center;margin-bottom:12px;" target="_blank">
-        View Analysis Dashboard
-      </a>
-
-      <a href="{competitive_intel_url}" style="display:block;background:{accent};color:white;text-decoration:none;padding:16px 24px;font-weight:600;font-size:14px;text-transform:uppercase;letter-spacing:0.5px;text-align:center;margin-bottom:12px;" target="_blank">
-        View Competitive Intelligence
-      </a>
-
-      <a href="{html_report_url}" style="display:block;background:white;color:{primary};text-decoration:none;padding:16px 24px;font-weight:600;font-size:14px;text-transform:uppercase;letter-spacing:0.5px;text-align:center;border:2px solid {primary};" target="_blank">
-        View Full HTML Report
-      </a>
-
-      <p style="color:#94a3b8;font-size:13px;line-height:1.6;margin:24px 0 0;text-align:center;">
-        These links will remain accessible as long as the server is running.
+      <p style="color:#64748b;font-size:15px;line-height:1.6;margin:0 0 24px;">
+        Our team is reviewing your report now and will be in touch shortly with your
+        full analysis, including competitive intelligence, SEO insights, and strategic recommendations.
+      </p>
+      <div style="background:{bg};padding:20px;border-left:4px solid {accent};margin:0 0 24px;">
+        <p style="color:{primary};font-size:14px;font-weight:600;margin:0 0 8px;">What's included in your report:</p>
+        <ul style="color:#64748b;font-size:14px;line-height:1.8;margin:0;padding-left:20px;">
+          <li>Brand identity & messaging analysis</li>
+          <li>Competitive landscape & positioning</li>
+          <li>SEO performance & keyword gaps</li>
+          <li>Web presence & social audit</li>
+          <li>Strategic recommendations</li>
+        </ul>
+      </div>
+      <p style="color:#94a3b8;font-size:13px;line-height:1.6;margin:0;text-align:center;">
+        Questions? Reply to this email and we'll get back to you.
       </p>
     </div>
     <div style="text-align:center;padding:24px;color:#94a3b8;font-size:12px;">

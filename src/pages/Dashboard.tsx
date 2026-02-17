@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useBrandTheme } from '@/lib/theme-context';
+import { useAuth } from '@/lib/auth-context';
 import { toast } from '@/hooks/use-toast';
 import {
   AlertDialog,
@@ -25,6 +26,7 @@ import {
   FileText,
   ExternalLink,
   BarChart3,
+  LogOut,
 } from 'lucide-react';
 
 const API_BASE = import.meta.env.VITE_API_URL || '';
@@ -50,6 +52,7 @@ const STATUS_CONFIG: Record<string, { label: string; variant: 'default' | 'secon
 const Dashboard: React.FC = () => {
   const navigate = useNavigate();
   const { resetTheme } = useBrandTheme();
+  const { logout } = useAuth();
   const [jobs, setJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState(true);
   const [serverUp, setServerUp] = useState(true);
@@ -128,9 +131,14 @@ const Dashboard: React.FC = () => {
               Intelligence
             </span>
           </div>
-          <button onClick={() => navigate('/')} className="btn-sharp-primary py-2 px-4 text-xs">
-            <Plus className="w-4 h-4 mr-1" /> New Analysis
-          </button>
+          <div className="flex items-center gap-2">
+            <button onClick={() => navigate('/')} className="btn-sharp-primary py-2 px-4 text-xs">
+              <Plus className="w-4 h-4 mr-1" /> New Analysis
+            </button>
+            <button onClick={() => { logout(); navigate('/login'); }} className="btn-sharp-secondary py-2 px-4 text-xs">
+              <LogOut className="w-4 h-4 mr-1" /> Logout
+            </button>
+          </div>
         </div>
       </nav>
 

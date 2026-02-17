@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useBrandTheme } from '@/lib/theme-context';
+import { useAuth } from '@/lib/auth-context';
 import {
   ArrowLeft,
   TrendingUp,
@@ -13,6 +14,7 @@ import {
   ChevronDown,
   ChevronUp,
   Loader2,
+  LogOut,
 } from 'lucide-react';
 import {
   BarChart,
@@ -226,6 +228,7 @@ const CompetitiveIntel: React.FC = () => {
   const { jobId } = useParams<{ jobId: string }>();
   const navigate = useNavigate();
   const { theme, setTheme } = useBrandTheme();
+  const { logout } = useAuth();
   const [data, setData] = useState<typeof sampleData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -381,9 +384,14 @@ const CompetitiveIntel: React.FC = () => {
               Intelligence
             </span>
           </div>
-          <button onClick={() => navigate('/dashboard')} className="btn-sharp-secondary text-xs py-2 px-4">
-            <ArrowLeft className="w-4 h-4 mr-1" /> Dashboard
-          </button>
+          <div className="flex items-center gap-2">
+            <button onClick={() => navigate('/dashboard')} className="btn-sharp-secondary text-xs py-2 px-4">
+              <ArrowLeft className="w-4 h-4 mr-1" /> Dashboard
+            </button>
+            <button onClick={() => { logout(); navigate('/login'); }} className="btn-sharp-secondary text-xs py-2 px-4">
+              <LogOut className="w-4 h-4 mr-1" /> Logout
+            </button>
+          </div>
         </div>
       </nav>
 

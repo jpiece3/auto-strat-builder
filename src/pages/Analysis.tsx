@@ -13,9 +13,11 @@ import {
   Clock,
   Download,
   ExternalLink,
+  LogOut,
   type LucideIcon,
 } from 'lucide-react';
 import { useBrandTheme } from '@/lib/theme-context';
+import { useAuth } from '@/lib/auth-context';
 
 const API_BASE = import.meta.env.VITE_API_URL || '';
 
@@ -77,6 +79,7 @@ const Analysis: React.FC = () => {
   const { jobId } = useParams<{ jobId: string }>();
   const navigate = useNavigate();
   const { theme, setTheme } = useBrandTheme();
+  const { logout } = useAuth();
   const [status, setStatus] = useState<JobStatus | null>(null);
   const [elapsed, setElapsed] = useState(0);
   const [expandedStep, setExpandedStep] = useState<number | null>(null);
@@ -158,9 +161,14 @@ const Analysis: React.FC = () => {
               {theme.brand_name ? `${theme.brand_name} Intel` : 'Intelligence'}
             </span>
           </div>
-          <button onClick={() => navigate('/')} className="btn-sharp-secondary text-xs py-2 px-4">
-            <ArrowLeft className="w-4 h-4 mr-1" /> Dashboard
-          </button>
+          <div className="flex items-center gap-2">
+            <button onClick={() => navigate('/dashboard')} className="btn-sharp-secondary text-xs py-2 px-4">
+              <ArrowLeft className="w-4 h-4 mr-1" /> Dashboard
+            </button>
+            <button onClick={() => { logout(); navigate('/login'); }} className="btn-sharp-secondary text-xs py-2 px-4">
+              <LogOut className="w-4 h-4 mr-1" /> Logout
+            </button>
+          </div>
         </div>
       </nav>
 
