@@ -1,0 +1,540 @@
+"""FastAPI server exposing the brand intelligence workflow as an API.
+
+Also serves the React frontend as static files in production so the
+entire app runs as a single Railway service.
+"""
+
+from __future__ import annotations
+
+import asyncio
+import os
+import uuid
+from datetime import datetime, timedelta, timezone
+from pathlib import Path
+from typing import Any
+
+import bcrypt
+import jwt
+from fastapi import Cookie, Depends, FastAPI, HTTPException, Request, Response
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse, HTMLResponse
+from fastapi.staticfiles import StaticFiles
+from pydantic import BaseModel, Field
+
+import resend
+
+from agent.agents.report_compiler import BROTHERS_AUTOMATE_THEME, ReportCompilerAgent
+from agent.config import AgentConfig
+from agent.models import BrandQuery, TaskStatus
+from agent.utils.logging import get_logger
+from agent.workflows.brand_intelligence import BrandIntelligenceWorkflow
+
+resend.api_key = os.getenv("RESEND_API_KEY", "")
+
+logger = get_logger("server")
+
+# ---------------------------------------------------------------------------
+# Auth setup
+# ---------------------------------------------------------------------------
+
+_ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "")
+_JWT_SECRET = os.getenv("JWT_SECRET", "change-this-to-a-random-secret")
+_JWT_ALGORITHM = "HS256"
+_JWT_EXPIRY_HOURS = 24
+
+_ADMIN_HASH: bytes | None = None
+if _ADMIN_PASSWORD:
+    _ADMIN_HASH = bcrypt.hashpw(_ADMIN_PASSWORD.encode(), bcrypt.gensalt())
+
+
+def _create_token() -> str:
+    payload = {
+        "sub": "admin",
+        "exp": datetime.now(timezone.utc) + timedelta(hours=_JWT_EXPIRY_HOURS),
+        "iat": datetime.now(timezone.utc),
+    }
+    return jwt.encode(payload, _JWT_SECRET, algorithm=_JWT_ALGORITHM)
+
+
+def _verify_token(token: str) -> bool:
+    try:
+        jwt.decode(token, _JWT_SECRET, algorithms=[_JWT_ALGORITHM])
+        return True
+    except (jwt.ExpiredSignatureError, jwt.InvalidTokenError):
+        return False
+
+
+async def require_admin(session: str | None = Cookie(None, alias="session")) -> None:
+    """Reject unauthenticated requests. No-op if ADMIN_PASSWORD is not set."""
+    if not _ADMIN_HASH:
+        return
+    if not session or not _verify_token(session):
+        raise HTTPException(status_code=401, detail="Authentication required")
+
+
+# ---------------------------------------------------------------------------
+# App setup
+# ---------------------------------------------------------------------------
+
+app = FastAPI(
+    title="Brand Intelligence Agent API",
+    description="Autonomous brand and competitor intelligence using Firecrawl, Tavily, Playwright, and DataForSEO",
+    version="0.1.0",
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# In-memory job store (swap for Redis/DB in production)
+_jobs: dict[str, dict[str, Any]] = {}
+
+# ---------------------------------------------------------------------------
+# Pydantic models
+# ---------------------------------------------------------------------------
+
+class BrandQueryRequest(BaseModel):
+    brand_name: str = Field(..., description="The brand name to analyze")
+    website_url: str = Field(..., description="The brand's primary website URL")
+    email: str = Field("", description="Email address to receive report links")
+    industry: str = Field("", description="Industry or vertical")
+    known_competitors: list[str] = Field(default_factory=list, description="Known competitor domains")
+    target_keywords: list[str] = Field(default_factory=list, description="Target SEO keywords")
+    social_profiles: dict[str, str] = Field(default_factory=dict, description="Known social profile URLs")
+    depth: str = Field("comprehensive", description="Analysis depth: quick, standard, comprehensive")
+
+
+class JobResponse(BaseModel):
+    job_id: str
+    status: str
+    message: str
+
+
+class BrandThemeResponse(BaseModel):
+    primary: str = "#1a365d"
+    primary_light: str = "#2c5282"
+    accent: str = "#ed8936"
+    accent_dark: str = "#dd6b20"
+    background: str = "#fdfcfa"
+    card_bg: str = "#ffffff"
+    text_primary: str = "#1a365d"
+    text_secondary: str = "#64748b"
+    text_muted: str = "#94a3b8"
+    border: str = "#e8e6e1"
+    success: str = "#16a34a"
+    blue: str = "#3182ce"
+    font_heading: str = "Plus Jakarta Sans"
+    font_body: str = "Plus Jakarta Sans"
+    logo_url: str = ""
+    tagline: str = "Simple AI. Smart Results."
+    footer_text: str = "Brothers Automate Intelligence Agent v0.1.0"
+    header_text_color: str = "#ffffff"
+    source: str = "fallback"
+    brand_name: str = ""
+
+
+class JobStatusResponse(BaseModel):
+    job_id: str
+    status: str
+    started_at: str
+    completed_at: str | None = None
+    report_path: str | None = None
+    html_report_path: str | None = None
+    competitive_intel_path: str | None = None
+    brand_theme: BrandThemeResponse | None = None
+    errors: list[str] = []
+    tasks_completed: int = 0
+    tasks_total: int = 5
+
+# ---------------------------------------------------------------------------
+# API endpoints
+# ---------------------------------------------------------------------------
+
+@app.get("/health")
+async def health() -> dict[str, str]:
+    return {"status": "ok", "service": "brand-intelligence-agent"}
+
+
+# ---------------------------------------------------------------------------
+# Auth endpoints (public)
+# ---------------------------------------------------------------------------
+
+class LoginRequest(BaseModel):
+    password: str
+
+
+@app.post("/api/auth/login")
+async def auth_login(body: LoginRequest, response: Response) -> dict[str, Any]:
+    if not _ADMIN_HASH:
+        raise HTTPException(status_code=503, detail="Admin password not configured")
+    if not bcrypt.checkpw(body.password.encode(), _ADMIN_HASH):
+        raise HTTPException(status_code=401, detail="Invalid password")
+    token = _create_token()
+    response.set_cookie(
+        key="session",
+        value=token,
+        httponly=True,
+        secure=True,
+        samesite="lax",
+        max_age=_JWT_EXPIRY_HOURS * 3600,
+        path="/",
+    )
+    return {"authenticated": True}
+
+
+@app.get("/api/auth/check")
+async def auth_check(session: str | None = Cookie(None, alias="session")) -> dict[str, bool]:
+    if not _ADMIN_HASH:
+        return {"authenticated": True}
+    authenticated = bool(session and _verify_token(session))
+    return {"authenticated": authenticated}
+
+
+@app.post("/api/auth/logout")
+async def auth_logout(response: Response) -> dict[str, bool]:
+    response.delete_cookie(key="session", path="/")
+    return {"authenticated": False}
+
+
+# ---------------------------------------------------------------------------
+# Public endpoints
+# ---------------------------------------------------------------------------
+
+@app.post("/api/analyze", response_model=JobResponse)
+async def start_analysis(request: BrandQueryRequest) -> JobResponse:
+    """Start a new brand intelligence analysis (runs in background)."""
+    job_id = str(uuid.uuid4())
+
+    query = BrandQuery(
+        brand_name=request.brand_name,
+        website_url=request.website_url,
+        email=request.email,
+        industry=request.industry,
+        known_competitors=request.known_competitors,
+        target_keywords=request.target_keywords,
+        social_profiles=request.social_profiles,
+        depth=request.depth,
+    )
+
+    _jobs[job_id] = {
+        "status": "running",
+        "started_at": datetime.utcnow().isoformat(),
+        "completed_at": None,
+        "report_path": None,
+        "html_report_path": None,
+        "competitive_intel_path": None,
+        "brand_theme": None,
+        "errors": [],
+        "tasks_completed": 0,
+        "query": query,
+        "brand_name": request.brand_name,
+        "website_url": request.website_url,
+        "email": request.email,
+    }
+
+    asyncio.create_task(_run_job(job_id, query))
+
+    logger.info("Job %s started for %s", job_id, request.brand_name)
+    return JobResponse(
+        job_id=job_id,
+        status="running",
+        message=f"Analysis started for {request.brand_name}. Poll /api/status/{job_id} for progress.",
+    )
+
+
+@app.get("/api/status/{job_id}", response_model=JobStatusResponse)
+async def get_status(job_id: str, _admin: None = Depends(require_admin)) -> JobStatusResponse:
+    """Check the status of a running analysis job."""
+    if job_id not in _jobs:
+        raise HTTPException(status_code=404, detail=f"Job {job_id} not found")
+
+    job = _jobs[job_id]
+    brand_theme = None
+    if job.get("brand_theme"):
+        brand_theme = BrandThemeResponse(**job["brand_theme"])
+    return JobStatusResponse(
+        job_id=job_id,
+        status=job["status"],
+        started_at=job["started_at"],
+        completed_at=job.get("completed_at"),
+        report_path=job.get("report_path"),
+        html_report_path=job.get("html_report_path"),
+        competitive_intel_path=job.get("competitive_intel_path"),
+        brand_theme=brand_theme,
+        errors=job.get("errors", []),
+        tasks_completed=job.get("tasks_completed", 0),
+    )
+
+
+@app.get("/api/jobs")
+async def list_jobs(_admin: None = Depends(require_admin)) -> list[dict[str, Any]]:
+    """List all jobs with summary info."""
+    return [
+        {
+            "job_id": jid,
+            "status": j["status"],
+            "started_at": j["started_at"],
+            "completed_at": j.get("completed_at"),
+            "brand_name": j.get("brand_name", ""),
+            "website_url": j.get("website_url", ""),
+            "report_path": j.get("report_path"),
+            "html_report_path": j.get("html_report_path"),
+            "competitive_intel_path": j.get("competitive_intel_path"),
+            "brand_theme": j.get("brand_theme"),
+        }
+        for jid, j in _jobs.items()
+    ]
+
+
+@app.delete("/api/jobs/{job_id}")
+async def delete_job(job_id: str, _admin: None = Depends(require_admin)) -> dict[str, str]:
+    """Delete a job from the dashboard."""
+    if job_id not in _jobs:
+        raise HTTPException(status_code=404, detail=f"Job {job_id} not found")
+
+    del _jobs[job_id]
+    logger.info("Job %s deleted", job_id)
+    return {"status": "deleted", "job_id": job_id}
+
+
+@app.get("/api/reports/{job_id}/html")
+async def get_html_report(job_id: str, _admin: None = Depends(require_admin)) -> FileResponse:
+    """Serve the HTML report for a completed job."""
+    if job_id not in _jobs:
+        raise HTTPException(status_code=404, detail=f"Job {job_id} not found")
+
+    job = _jobs[job_id]
+    html_path = job.get("html_report_path")
+
+    if not html_path:
+        raise HTTPException(status_code=404, detail="HTML report not found for this job")
+
+    html_file = Path(html_path)
+    if not html_file.exists():
+        raise HTTPException(status_code=404, detail="HTML report file does not exist")
+
+    return FileResponse(
+        html_file,
+        media_type="text/html",
+        filename=html_file.name
+    )
+
+
+@app.get("/api/reports/{job_id}/markdown")
+async def get_markdown_report(job_id: str, _admin: None = Depends(require_admin)) -> FileResponse:
+    """Serve the Markdown report for a completed job."""
+    if job_id not in _jobs:
+        raise HTTPException(status_code=404, detail=f"Job {job_id} not found")
+
+    job = _jobs[job_id]
+    report_path = job.get("report_path")
+
+    if not report_path:
+        raise HTTPException(status_code=404, detail="Markdown report not found for this job")
+
+    report_file = Path(report_path)
+    if not report_file.exists():
+        raise HTTPException(status_code=404, detail="Markdown report file does not exist")
+
+    return FileResponse(
+        report_file,
+        media_type="text/markdown",
+        filename=report_file.name
+    )
+
+
+@app.get("/api/reports/{job_id}/competitive-intel")
+async def get_competitive_intel(job_id: str, _admin: None = Depends(require_admin)) -> FileResponse:
+    """Serve the competitive intelligence JSON for a completed job."""
+    if job_id not in _jobs:
+        raise HTTPException(status_code=404, detail=f"Job {job_id} not found")
+
+    job = _jobs[job_id]
+    competitive_intel_path = job.get("competitive_intel_path")
+
+    if not competitive_intel_path:
+        raise HTTPException(status_code=404, detail="Competitive intelligence report not found for this job")
+
+    intel_file = Path(competitive_intel_path)
+    if not intel_file.exists():
+        raise HTTPException(status_code=404, detail="Competitive intelligence file does not exist")
+
+    return FileResponse(
+        intel_file,
+        media_type="application/json",
+        filename=intel_file.name
+    )
+
+
+@app.get("/api/theme/{job_id}", response_model=BrandThemeResponse)
+async def get_brand_theme(job_id: str, _admin: None = Depends(require_admin)) -> BrandThemeResponse:
+    """Get the resolved brand theme for a completed job."""
+    if job_id not in _jobs:
+        raise HTTPException(status_code=404, detail=f"Job {job_id} not found")
+
+    job = _jobs[job_id]
+    theme_data = job.get("brand_theme")
+
+    if theme_data:
+        return BrandThemeResponse(**theme_data)
+
+    # Return Brothers Automate defaults if theme not yet resolved
+    fallback = dict(BROTHERS_AUTOMATE_THEME)
+    fallback["brand_name"] = job.get("brand_name", "")
+    return BrandThemeResponse(**fallback)
+
+
+# ---------------------------------------------------------------------------
+# Background job runner
+# ---------------------------------------------------------------------------
+
+def _send_report_email(job_id: str, email: str, brand_name: str, theme: dict[str, str] | None = None) -> None:
+    """Send a confirmation email (no direct report links — admin reviews and delivers)."""
+    t = theme or {}
+    primary = t.get("primary", "#1a365d")
+    accent = t.get("accent", "#ed8936")
+    bg = t.get("background", "#fdfcfa")
+    logo_url = t.get("logo_url", "")
+
+    logo_html = f'<img src="{logo_url}" alt="{brand_name}" style="max-width:160px;height:auto;margin-bottom:16px;">' if logo_url else ""
+
+    email_html = f"""<!DOCTYPE html>
+<html>
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
+<body style="margin:0;padding:0;background:{bg};font-family:'Plus Jakarta Sans',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
+  <div style="max-width:600px;margin:0 auto;padding:32px 24px;">
+    <div style="background:{primary};padding:32px;border-bottom:4px solid {accent};text-align:center;">
+      {logo_html}
+      <h1 style="color:white;margin:0;font-size:24px;font-weight:700;">Your Intelligence Report is Ready</h1>
+      <p style="color:rgba(255,255,255,0.8);margin:8px 0 0;font-size:14px;">{brand_name}</p>
+    </div>
+    <div style="background:white;padding:32px;border:1px solid #e8e6e1;">
+      <p style="color:#64748b;font-size:15px;line-height:1.6;margin:0 0 24px;">
+        Great news! Your comprehensive brand intelligence analysis for
+        <strong style="color:{primary};">{brand_name}</strong> has been completed successfully.
+      </p>
+      <p style="color:#64748b;font-size:15px;line-height:1.6;margin:0 0 24px;">
+        Our team is reviewing your report now and will be in touch shortly with your
+        full analysis, including competitive intelligence, SEO insights, and strategic recommendations.
+      </p>
+      <div style="background:{bg};padding:20px;border-left:4px solid {accent};margin:0 0 24px;">
+        <p style="color:{primary};font-size:14px;font-weight:600;margin:0 0 8px;">What's included in your report:</p>
+        <ul style="color:#64748b;font-size:14px;line-height:1.8;margin:0;padding-left:20px;">
+          <li>Brand identity & messaging analysis</li>
+          <li>Competitive landscape & positioning</li>
+          <li>SEO performance & keyword gaps</li>
+          <li>Web presence & social audit</li>
+          <li>Strategic recommendations</li>
+        </ul>
+      </div>
+      <p style="color:#94a3b8;font-size:13px;line-height:1.6;margin:0;text-align:center;">
+        Questions? Reply to this email and we'll get back to you.
+      </p>
+    </div>
+    <div style="text-align:center;padding:24px;color:#94a3b8;font-size:12px;">
+      <p style="margin:0;">Brothers Automate Intelligence Agent</p>
+      <p style="margin:4px 0 0;">Simple AI. Smart Results.</p>
+    </div>
+  </div>
+</body>
+</html>"""
+
+    resend.Emails.send({
+        "from": "Brothers Automate <intel@brothersautomate.com>",
+        "to": [email],
+        "subject": f"Your Brand Intelligence Report: {brand_name}",
+        "html": email_html,
+    })
+    logger.info("Report email sent to %s for job %s", email, job_id)
+
+
+async def _run_job(job_id: str, query: BrandQuery) -> None:
+    """Execute the workflow and update job state."""
+    try:
+        config = AgentConfig(output_dir=Path("./reports"))
+        workflow = BrandIntelligenceWorkflow(config)
+        await workflow.initialize()
+
+        state = await workflow.run(query)
+
+        _jobs[job_id]["status"] = state.status.value
+        _jobs[job_id]["completed_at"] = state.completed_at
+        _jobs[job_id]["report_path"] = state.report_path
+        _jobs[job_id]["html_report_path"] = getattr(state, 'html_report_path', None)
+        _jobs[job_id]["competitive_intel_path"] = getattr(state, 'competitive_intel_path', None)
+        _jobs[job_id]["errors"] = state.errors
+        _jobs[job_id]["tasks_completed"] = sum(
+            1 for t in state.task_results if t.status == TaskStatus.COMPLETED
+        )
+
+        # Resolve and store brand theme for frontend
+        if state.brand:
+            compiler = ReportCompilerAgent(config, {})
+            theme = compiler.resolve_theme(state.brand)
+            theme["brand_name"] = state.brand.brand_name
+            _jobs[job_id]["brand_theme"] = theme
+        else:
+            fallback = dict(BROTHERS_AUTOMATE_THEME)
+            fallback["brand_name"] = query.brand_name
+            _jobs[job_id]["brand_theme"] = fallback
+
+        # Send report email if email was provided
+        if query.email:
+            try:
+                _send_report_email(
+                    job_id=job_id,
+                    email=query.email,
+                    brand_name=query.brand_name,
+                    theme=_jobs[job_id].get("brand_theme"),
+                )
+            except Exception as email_exc:
+                logger.warning("Failed to send report email for job %s: %s", job_id, email_exc)
+
+    except Exception as exc:
+        logger.error("Job %s failed: %s", job_id, exc, exc_info=True)
+        _jobs[job_id]["status"] = "failed"
+        _jobs[job_id]["completed_at"] = datetime.utcnow().isoformat()
+        _jobs[job_id]["errors"] = [str(exc)]
+
+
+# ---------------------------------------------------------------------------
+# Static file serving — React SPA
+# ---------------------------------------------------------------------------
+
+DIST_DIR = Path(__file__).resolve().parent.parent / "dist"
+
+
+@app.on_event("startup")
+async def _mount_frontend() -> None:
+    """Mount the built React app if the dist directory exists."""
+    if DIST_DIR.is_dir():
+        # Serve /assets/* directly
+        assets = DIST_DIR / "assets"
+        if assets.is_dir():
+            app.mount("/assets", StaticFiles(directory=str(assets)), name="assets")
+        logger.info("Serving frontend from %s", DIST_DIR)
+    else:
+        logger.warning("No frontend build found at %s — run `npm run build` first", DIST_DIR)
+
+
+@app.get("/{full_path:path}", response_model=None)
+async def serve_spa(request: Request, full_path: str) -> FileResponse | HTMLResponse:
+    """Catch-all: serve static files or fall back to index.html for SPA routing."""
+    # Try to serve an exact file match first (favicon, robots.txt, etc.)
+    file_path = DIST_DIR / full_path
+    if file_path.is_file():
+        return FileResponse(file_path)
+
+    # Fall back to index.html for client-side routing
+    index = DIST_DIR / "index.html"
+    if index.is_file():
+        return FileResponse(index)
+
+    return HTMLResponse(
+        content="<h1>Frontend not built</h1><p>Run <code>npm run build</code> then restart the server.</p>",
+        status_code=200,
+    )
